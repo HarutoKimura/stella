@@ -20,6 +20,7 @@ export function useRealtime() {
   const [status, setStatus] = useState<ConnectionStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [micActive, setMicActive] = useState(false)
+  const [isTutorSpeaking, setIsTutorSpeaking] = useState(false)
 
   const peerRef = useRef<RTCPeerConnection | null>(null)
   const channelRef = useRef<RTCDataChannel | null>(null)
@@ -70,6 +71,13 @@ export function useRealtime() {
         console.log('[Realtime Event]', event.type, event)
 
         switch (event.type) {
+          // Response started - tutor is speaking
+          case 'response.created':
+          case 'response.started': {
+            setIsTutorSpeaking(true)
+            break
+          }
+
           // Text deltas (streaming response)
           case 'response.delta':
           case 'response.text.delta':
@@ -93,6 +101,7 @@ export function useRealtime() {
               addTutorMessage(message)
               bufferRef.current = ''
             }
+            setIsTutorSpeaking(false)
             break
           }
 
@@ -338,6 +347,7 @@ export function useRealtime() {
     status,
     error,
     micActive,
+    isTutorSpeaking,
     start,
     sendText,
     stop,

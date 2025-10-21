@@ -4,6 +4,7 @@ import { OrbBG } from '@/components/OrbBG'
 import { IntentCaption } from '@/components/IntentCaption'
 import { BubbleContainer } from '@/components/BubbleContainer'
 import { DemoBubbleButton } from '@/components/DemoBubbleButton'
+import Orb from '@/components/Orb'
 import { useSessionStore } from '@/lib/sessionStore'
 import { useBubbleStore } from '@/lib/bubbleStore'
 import { useRealtime } from '@/lib/useRealtime'
@@ -23,7 +24,7 @@ export default function FreeConversationPage() {
   const supabase = createClient()
 
   // Realtime connection
-  const { status, error, micActive, start, sendText, stop } = useRealtime()
+  const { status, error, micActive, isTutorSpeaking, start, sendText, stop } = useRealtime()
 
   useEffect(() => {
     initSession()
@@ -146,7 +147,7 @@ export default function FreeConversationPage() {
       <IntentCaption />
       <BubbleContainer />
       <DemoBubbleButton />
-      <div className="min-h-screen p-6">
+      <div className="min-h-screen p-6 pb-40">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -203,38 +204,57 @@ export default function FreeConversationPage() {
             </div>
           )}
 
-          {/* Centered conversation input */}
-          <div className="max-w-3xl mx-auto mt-32">
-            <form onSubmit={handleSend} className="relative">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  micActive
-                    ? 'Speak freely or type here...'
-                    : status === 'connected'
-                    ? 'Type to chat (mic off)'
-                    : 'Connecting...'
-                }
-                className="w-full px-6 py-6 pr-32 rounded-2xl bg-white/10 border-2 border-blue-500/30 text-white text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50"
-                disabled={status !== 'connected'}
+          {/* Centered Orb - Animated AI Tutor Visual */}
+          <div className="flex flex-col items-center justify-center mt-12">
+            <div style={{ width: '100%', maxWidth: '600px', height: '600px', position: 'relative' }}>
+              <Orb
+                hue={0}
+                hoverIntensity={0.5}
+                rotateOnHover={true}
+                forceHoverState={isTutorSpeaking}
               />
-              <button
-                type="submit"
-                disabled={status !== 'connected' || !input.trim()}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors disabled:opacity-50"
-              >
-                Send
-              </button>
-            </form>
-
-            {micActive && (
-              <p className="text-sm text-gray-400 mt-4 text-center">
-                💡 You can speak or type - AI responds with voice + text
+            </div>
+            {isTutorSpeaking && (
+              <p className="text-lg text-blue-300 mt-4 animate-pulse">
+                AI Tutor is speaking...
               </p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Fixed Bottom Input */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent p-6 backdrop-blur-sm">
+        <div className="max-w-3xl mx-auto">
+          <form onSubmit={handleSend} className="relative">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                micActive
+                  ? 'Speak freely or type here...'
+                  : status === 'connected'
+                  ? 'Type to chat (mic off)'
+                  : 'Connecting...'
+              }
+              className="w-full px-6 py-6 pr-32 rounded-2xl bg-white/10 border-2 border-blue-500/30 text-white text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50"
+              disabled={status !== 'connected'}
+            />
+            <button
+              type="submit"
+              disabled={status !== 'connected' || !input.trim()}
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors disabled:opacity-50"
+            >
+              Send
+            </button>
+          </form>
+
+          {micActive && (
+            <p className="text-sm text-gray-400 mt-4 text-center">
+              💡 You can speak or type - AI responds with voice + text
+            </p>
+          )}
         </div>
       </div>
     </OrbBG>
