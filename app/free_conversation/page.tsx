@@ -158,13 +158,13 @@ export default function FreeConversationPage() {
       <DemoBubbleButton />
       <div className="min-h-screen p-6 pb-40">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-white">Free Conversation</h1>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-bold text-white">Free Conversation</h1>
               {/* Connection status indicator */}
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-3 h-3 rounded-full ${
+                  className={`w-2 h-2 rounded-full ${
                     status === 'connected'
                       ? 'bg-green-400 animate-pulse'
                       : status === 'connecting'
@@ -174,7 +174,7 @@ export default function FreeConversationPage() {
                       : 'bg-gray-400'
                   }`}
                 />
-                <span className="text-sm text-gray-300">
+                <span className="text-xs text-gray-300">
                   {status === 'connected' && micActive ? '🎤 Voice + Text' : status}
                 </span>
               </div>
@@ -184,26 +184,26 @@ export default function FreeConversationPage() {
                 {status === 'idle' || status === 'disconnected' || status === 'error' ? (
                   <button
                     onClick={() => user?.id && startNewSession(user.id, user.cefr)}
-                    className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+                    className="bg-green-600 hover:bg-green-700 text-white font-semibold px-3 py-1.5 rounded text-xs transition-colors"
                   >
-                    ▶️ Start Session
+                    ▶️ Start
                   </button>
                 ) : null}
                 {status === 'connected' || status === 'connecting' ? (
                   <button
                     onClick={stop}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 rounded text-xs transition-colors"
                   >
-                    ⏹️ Stop Session
+                    ⏹️ Stop
                   </button>
                 ) : null}
               </div>
             </div>
             <a
               href="/home"
-              className="text-white hover:text-blue-300 transition-colors"
+              className="text-white hover:text-blue-300 transition-colors text-xs"
             >
-              ← Back to Home
+              ← Home
             </a>
           </div>
 
@@ -224,7 +224,7 @@ export default function FreeConversationPage() {
               />
             </div>
             {isTutorSpeaking && (
-              <p className="text-lg text-blue-300 mt-4 animate-pulse">
+              <p className="text-2xl text-blue-300 mt-6 animate-pulse font-medium">
                 AI Tutor is speaking...
               </p>
             )}
@@ -247,20 +247,20 @@ export default function FreeConversationPage() {
                   ? 'Type to chat (mic off)'
                   : 'Connecting...'
               }
-              className="w-full px-6 py-6 pr-32 rounded-2xl bg-white/10 border-2 border-blue-500/30 text-white text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50"
+              className="w-full px-6 py-6 pr-40 rounded-2xl bg-white/10 border-2 border-blue-500/30 text-white text-2xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50"
               disabled={status !== 'connected'}
             />
             <button
               type="submit"
               disabled={status !== 'connected' || !input.trim()}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors disabled:opacity-50"
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-10 rounded-xl transition-colors disabled:opacity-50 text-xl"
             >
               Send
             </button>
           </form>
 
           {micActive && (
-            <p className="text-sm text-gray-400 mt-4 text-center">
+            <p className="text-base text-gray-400 mt-4 text-center">
               💡 You can speak or type - AI responds with voice + text
             </p>
           )}

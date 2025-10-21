@@ -111,25 +111,25 @@ export function FloatingBubble({ bubble, index, onDismiss }: FloatingBubbleProps
       >
         {/* Header */}
         <div className="flex items-center gap-3 mb-3">
-          <span className="text-4xl">{config.emoji}</span>
+          <span className="text-3xl">{config.emoji}</span>
           <div className="flex-1">
-            <h3 className={`${config.textColor} font-bold text-lg uppercase tracking-wide`}>
+            <h3 className={`${config.textColor} font-bold text-xs uppercase tracking-wide`}>
               {bubble.title}
               {bubble.count && bubble.count > 1 && (
-                <span className="ml-2 text-sm opacity-75">({bubble.count}x)</span>
+                <span className="ml-2 text-[10px] opacity-75">({bubble.count}x)</span>
               )}
             </h3>
           </div>
           <button
             onClick={handleDismiss}
-            className="text-white/60 hover:text-white/90 transition-colors text-xl"
+            className="text-white/60 hover:text-white/90 transition-colors text-sm"
           >
             ✕
           </button>
         </div>
 
         {/* Message */}
-        <p className="text-white text-lg leading-relaxed whitespace-pre-line">
+        <p className="text-white text-xl leading-relaxed whitespace-pre-line font-medium">
           {bubble.message}
         </p>
       </div>
