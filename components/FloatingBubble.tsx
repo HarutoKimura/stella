@@ -65,7 +65,7 @@ export function FloatingBubble({ bubble, index, onDismiss }: FloatingBubbleProps
 
   // Stagger appearance
   useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), index * 100)
+    const timer = setTimeout(() => setIsVisible(true), index * 150)
     return () => clearTimeout(timer)
   }, [index])
 
@@ -73,7 +73,7 @@ export function FloatingBubble({ bubble, index, onDismiss }: FloatingBubbleProps
     setIsLeaving(true)
     setTimeout(() => {
       onDismiss(bubble.id)
-    }, 300) // Match animation duration
+    }, 400) // Match animation duration
   }
 
   // Determine if this is a conversation bubble or correction/tip bubble
@@ -82,19 +82,31 @@ export function FloatingBubble({ bubble, index, onDismiss }: FloatingBubbleProps
   // Position from bottom (stagger vertically upward)
   const bottomPosition = 120 + index * 160 // 120px from bottom, 160px spacing
 
+  // Random float animation delay for each bubble
+  const floatDelay = Math.random() * 2
+
   return (
     <div
-      className={`fixed z-50 transition-all duration-300 ease-out ${
+      className={`fixed z-50 ${
         isConversation ? 'left-6' : 'right-6'
-      } ${
-        isVisible && !isLeaving
-          ? 'opacity-100 translate-y-0'
-          : 'opacity-0 translate-y-8'
       }`}
-      style={{ bottom: `${bottomPosition}px` }}
+      style={{
+        bottom: `${bottomPosition}px`,
+        animation: isVisible && !isLeaving ? `float 3s ease-in-out ${floatDelay}s infinite` : 'none'
+      }}
     >
       <div
-        className={`${config.bgColor} ${config.borderColor} backdrop-blur-md rounded-3xl border-2 p-6 shadow-2xl cursor-pointer hover:scale-105 transition-transform max-w-2xl w-full`}
+        className={`${config.bgColor} ${config.borderColor} backdrop-blur-md rounded-3xl border-2 p-6 shadow-2xl cursor-pointer max-w-2xl w-full transition-all duration-500 ${
+          isVisible && !isLeaving
+            ? 'opacity-100 scale-100'
+            : isLeaving
+            ? 'opacity-0 scale-75 translate-y-4'
+            : 'opacity-0 scale-50 translate-y-12'
+        }`}
+        style={{
+          transform: isVisible && !isLeaving ? 'translateY(0) scale(1)' : '',
+          transition: 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'
+        }}
         onClick={handleDismiss}
       >
         {/* Header */}
@@ -121,6 +133,17 @@ export function FloatingBubble({ bubble, index, onDismiss }: FloatingBubbleProps
           {bubble.message}
         </p>
       </div>
+
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+      `}</style>
     </div>
   )
 }

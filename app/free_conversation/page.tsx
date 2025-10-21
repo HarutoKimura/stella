@@ -27,7 +27,16 @@ export default function FreeConversationPage() {
   const { status, error, micActive, isTutorSpeaking, start, sendText, stop } = useRealtime()
 
   useEffect(() => {
-    initSession()
+    // Prevent double initialization in React strict mode
+    let initialized = false
+
+    const init = async () => {
+      if (initialized) return
+      initialized = true
+      await initSession()
+    }
+
+    init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
