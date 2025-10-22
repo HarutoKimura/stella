@@ -20,6 +20,8 @@ export default function FreeConversationPage() {
   const startSession = useSessionStore((state) => state.startSession)
   const setUser = useSessionStore((state) => state.setUser)
   const addUserMessage = useBubbleStore((state) => state.addUserMessage)
+  const showTutorTranscript = useBubbleStore((state) => state.showTutorTranscript)
+  const toggleTutorTranscript = useBubbleStore((state) => state.toggleTutorTranscript)
   const router = useRouter()
   const supabase = createClient()
 
@@ -197,6 +199,18 @@ export default function FreeConversationPage() {
                     ⏹️ Stop
                   </button>
                 ) : null}
+                {/* Toggle tutor transcript visibility */}
+                <button
+                  onClick={toggleTutorTranscript}
+                  className={`${
+                    showTutorTranscript
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-gray-600 hover:bg-gray-700'
+                  } text-white font-semibold px-3 py-1.5 rounded text-xs transition-colors`}
+                  title={showTutorTranscript ? 'Hide tutor transcript' : 'Show tutor transcript'}
+                >
+                  {showTutorTranscript ? '👁️ Tutor' : '🚫 Tutor'}
+                </button>
               </div>
             </div>
             <a
