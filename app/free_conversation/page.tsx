@@ -282,24 +282,17 @@ export default function FreeConversationPage() {
                   className="w-full px-4 py-3 pr-24 bg-transparent text-white text-base placeholder-gray-400 focus:outline-none"
                   disabled={status !== 'connected'}
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <SpotlightCard
-                    className="!p-0 !rounded-lg"
-                    spotlightColor="rgba(59, 130, 246, 0.3)"
-                  >
-                    <button
-                      type="submit"
-                      disabled={status !== 'connected' || !input.trim()}
-                      className={`${
-                        status === 'connected' && input.trim()
-                          ? 'text-blue-400'
-                          : 'text-gray-600'
-                      } font-semibold py-2 px-4 text-sm transition-colors disabled:cursor-not-allowed`}
-                    >
-                      Send
-                    </button>
-                  </SpotlightCard>
-                </div>
+                <button
+                  type="submit"
+                  disabled={status !== 'connected' || !input.trim()}
+                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${
+                    status === 'connected' && input.trim()
+                      ? 'text-blue-400 hover:text-blue-300'
+                      : 'text-gray-600'
+                  } font-semibold text-sm transition-colors disabled:cursor-not-allowed`}
+                >
+                  Send
+                </button>
               </div>
             </SpotlightCard>
           </form>
