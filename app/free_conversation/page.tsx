@@ -247,8 +247,8 @@ export default function FreeConversationPage() {
       </div>
 
       {/* Fixed Bottom Input */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent p-6 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent p-4 backdrop-blur-sm">
+        <div className="max-w-xl mx-auto">
           <form onSubmit={handleSend} className="relative">
             <input
               type="text"
@@ -261,20 +261,20 @@ export default function FreeConversationPage() {
                   ? 'Type to chat (mic off)'
                   : 'Connecting...'
               }
-              className="w-full px-6 py-6 pr-40 rounded-2xl bg-white/10 border-2 border-blue-500/30 text-white text-2xl placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50"
+              className="w-full px-4 py-3 pr-20 rounded-lg bg-white/10 border-2 border-blue-500/30 text-white text-base placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50"
               disabled={status !== 'connected'}
             />
             <button
               type="submit"
               disabled={status !== 'connected' || !input.trim()}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-10 rounded-xl transition-colors disabled:opacity-50 text-xl"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 text-sm"
             >
               Send
             </button>
           </form>
 
           {micActive && (
-            <p className="text-base text-gray-400 mt-4 text-center">
+            <p className="text-sm text-gray-400 mt-3 text-center">
               💡 You can speak or type - AI responds with voice + text
             </p>
           )}
