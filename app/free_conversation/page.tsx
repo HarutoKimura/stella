@@ -3,7 +3,8 @@
 import { OrbBG } from '@/components/OrbBG'
 import { IntentCaption } from '@/components/IntentCaption'
 import { BubbleContainer } from '@/components/BubbleContainer'
-import { DemoBubbleButton } from '@/components/DemoBubbleButton'
+import Orb from '@/components/Orb'
+import SpotlightCard from '@/components/SpotlightCard'
 import { useSessionStore } from '@/lib/sessionStore'
 import { useBubbleStore } from '@/lib/bubbleStore'
 import { useRealtime } from '@/lib/useRealtime'
@@ -19,14 +20,25 @@ export default function FreeConversationPage() {
   const startSession = useSessionStore((state) => state.startSession)
   const setUser = useSessionStore((state) => state.setUser)
   const addUserMessage = useBubbleStore((state) => state.addUserMessage)
+  const showTutorTranscript = useBubbleStore((state) => state.showTutorTranscript)
+  const toggleTutorTranscript = useBubbleStore((state) => state.toggleTutorTranscript)
   const router = useRouter()
   const supabase = createClient()
 
   // Realtime connection
-  const { status, error, micActive, start, sendText, stop } = useRealtime()
+  const { status, error, micActive, isTutorSpeaking, start, sendText, stop } = useRealtime()
 
   useEffect(() => {
-    initSession()
+    // Prevent double initialization in React strict mode
+    let initialized = false
+
+    const init = async () => {
+      if (initialized) return
+      initialized = true
+      await initSession()
+    }
+
+    init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -145,96 +157,149 @@ export default function FreeConversationPage() {
     <OrbBG>
       <IntentCaption />
       <BubbleContainer />
-      <DemoBubbleButton />
-      <div className="min-h-screen p-6">
+      <div className="min-h-screen p-6 pb-40">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-white">Free Conversation</h1>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-bold text-white">Free Conversation</h1>
               {/* Connection status indicator */}
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    status === 'connected'
-                      ? 'bg-green-400 animate-pulse'
-                      : status === 'connecting'
-                      ? 'bg-yellow-400 animate-pulse'
-                      : status === 'error'
-                      ? 'bg-red-400'
-                      : 'bg-gray-400'
-                  }`}
-                />
-                <span className="text-sm text-gray-300">
-                  {status === 'connected' && micActive ? '🎤 Voice + Text' : status}
-                </span>
-              </div>
+              <SpotlightCard className="!p-2 !rounded-lg" spotlightColor="rgba(59, 130, 246, 0.3)">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      status === 'connected'
+                        ? 'bg-green-400 animate-pulse'
+                        : status === 'connecting'
+                        ? 'bg-yellow-400 animate-pulse'
+                        : status === 'error'
+                        ? 'bg-red-400'
+                        : 'bg-gray-400'
+                    }`}
+                  />
+                  <span className="text-xs text-gray-300">
+                    {status === 'connected' && micActive ? '🎤 Voice + Text' : status}
+                  </span>
+                </div>
+              </SpotlightCard>
 
               {/* Session control buttons */}
               <div className="flex items-center gap-2">
                 {status === 'idle' || status === 'disconnected' || status === 'error' ? (
-                  <button
-                    onClick={() => user?.id && startNewSession(user.id, user.cefr)}
-                    className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-                  >
-                    ▶️ Start Session
-                  </button>
+                  <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(34, 197, 94, 0.3)">
+                    <button
+                      onClick={() => user?.id && startNewSession(user.id, user.cefr)}
+                      className="text-green-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
+                    >
+                      ▶️ Start
+                    </button>
+                  </SpotlightCard>
                 ) : null}
                 {status === 'connected' || status === 'connecting' ? (
-                  <button
-                    onClick={stop}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-                  >
-                    ⏹️ Stop Session
-                  </button>
+                  <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(239, 68, 68, 0.3)">
+                    <button
+                      onClick={stop}
+                      className="text-red-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
+                    >
+                      ⏹️ Stop
+                    </button>
+                  </SpotlightCard>
                 ) : null}
+                {/* Toggle tutor transcript visibility */}
+                <SpotlightCard
+                  className="!p-0 !rounded-lg"
+                  spotlightColor={showTutorTranscript ? "rgba(59, 130, 246, 0.3)" : "rgba(156, 163, 175, 0.3)"}
+                >
+                  <button
+                    onClick={toggleTutorTranscript}
+                    className={`${
+                      showTutorTranscript
+                        ? 'text-blue-400'
+                        : 'text-gray-400'
+                    } font-semibold px-3 py-1.5 text-xs w-full h-full`}
+                    title={showTutorTranscript ? 'Hide tutor transcript' : 'Show tutor transcript'}
+                  >
+                    {showTutorTranscript ? '👁️ Tutor' : '🚫 Tutor'}
+                  </button>
+                </SpotlightCard>
               </div>
             </div>
             <a
               href="/home"
-              className="text-white hover:text-blue-300 transition-colors"
+              className="text-white hover:text-blue-300 transition-colors text-xs"
             >
-              ← Back to Home
+              ← Home
             </a>
           </div>
 
           {error && (
-            <div className="mb-4 bg-red-500/20 border border-red-500 text-red-200 px-4 py-3 rounded-lg">
-              {error}
-            </div>
+            <SpotlightCard className="mb-4 !border-red-500/50" spotlightColor="rgba(239, 68, 68, 0.2)">
+              <div className="text-red-300 text-sm">
+                {error}
+              </div>
+            </SpotlightCard>
           )}
 
-          {/* Centered conversation input */}
-          <div className="max-w-3xl mx-auto mt-32">
-            <form onSubmit={handleSend} className="relative">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  micActive
-                    ? 'Speak freely or type here...'
-                    : status === 'connected'
-                    ? 'Type to chat (mic off)'
-                    : 'Connecting...'
-                }
-                className="w-full px-6 py-6 pr-32 rounded-2xl bg-white/10 border-2 border-blue-500/30 text-white text-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/50"
-                disabled={status !== 'connected'}
+          {/* Centered Orb - Static AI Tutor Visual */}
+          <div className="flex flex-col items-center justify-center mt-12">
+            <div style={{ width: '100%', maxWidth: '600px', height: '600px', position: 'relative' }}>
+              <Orb
+                hue={0}
+                hoverIntensity={0}
+                rotateOnHover={false}
+                forceHoverState={false}
               />
-              <button
-                type="submit"
-                disabled={status !== 'connected' || !input.trim()}
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors disabled:opacity-50"
-              >
-                Send
-              </button>
-            </form>
-
-            {micActive && (
-              <p className="text-sm text-gray-400 mt-4 text-center">
-                💡 You can speak or type - AI responds with voice + text
-              </p>
+            </div>
+            {isTutorSpeaking && (
+              <SpotlightCard className="mt-6 !p-4" spotlightColor="rgba(59, 130, 246, 0.3)">
+                <p className="text-xl text-blue-300 animate-pulse font-medium">
+                  AI Tutor is speaking...
+                </p>
+              </SpotlightCard>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Fixed Bottom Input */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent p-4 backdrop-blur-sm">
+        <div className="max-w-xl mx-auto">
+          <form onSubmit={handleSend} className="relative">
+            <SpotlightCard className="!p-0 w-full" spotlightColor="rgba(59, 130, 246, 0.3)">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={
+                    micActive
+                      ? 'Speak freely or type here...'
+                      : status === 'connected'
+                      ? 'Type to chat (mic off)'
+                      : 'Connecting...'
+                  }
+                  className="w-full px-4 py-3 pr-24 bg-transparent text-white text-base placeholder-gray-400 focus:outline-none"
+                  disabled={status !== 'connected'}
+                />
+                <button
+                  type="submit"
+                  disabled={status !== 'connected' || !input.trim()}
+                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${
+                    status === 'connected' && input.trim()
+                      ? 'text-blue-400 hover:text-blue-300'
+                      : 'text-gray-600'
+                  } font-semibold text-sm transition-colors disabled:cursor-not-allowed`}
+                >
+                  Send
+                </button>
+              </div>
+            </SpotlightCard>
+          </form>
+
+          {micActive && (
+            <p className="text-sm text-gray-400 mt-3 text-center">
+              💡 You can speak or type - AI responds with voice + text
+            </p>
+          )}
         </div>
       </div>
     </OrbBG>

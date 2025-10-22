@@ -17,15 +17,18 @@ export type Bubble = {
 
 type BubbleStore = {
   bubbles: Bubble[]
+  showTutorTranscript: boolean
   addBubble: (bubble: Omit<Bubble, 'id' | 'createdAt'>) => void
   addTutorMessage: (message: string) => void
   addUserMessage: (message: string) => void
   removeBubble: (id: string) => void
   clearAll: () => void
+  toggleTutorTranscript: () => void
 }
 
 export const useBubbleStore = create<BubbleStore>((set) => ({
   bubbles: [],
+  showTutorTranscript: true,
 
   addBubble: (bubbleData) => {
     const bubble: Bubble = {
@@ -85,4 +88,9 @@ export const useBubbleStore = create<BubbleStore>((set) => ({
     })),
 
   clearAll: () => set({ bubbles: [] }),
+
+  toggleTutorTranscript: () =>
+    set((state) => ({
+      showTutorTranscript: !state.showTutorTranscript,
+    })),
 }))

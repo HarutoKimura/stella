@@ -20,10 +20,12 @@ export function useRealtime() {
   const [status, setStatus] = useState<ConnectionStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [micActive, setMicActive] = useState(false)
+  const [isTutorSpeaking, setIsTutorSpeaking] = useState(false)
 
   const peerRef = useRef<RTCPeerConnection | null>(null)
   const channelRef = useRef<RTCDataChannel | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const audioElementRef = useRef<HTMLAudioElement | null>(null)
   const bufferRef = useRef<string>('')
 
   const addTurn = useSessionStore((state) => state.addTurn)
@@ -70,29 +72,39 @@ export function useRealtime() {
         console.log('[Realtime Event]', event.type, event)
 
         switch (event.type) {
-          // Text deltas (streaming response)
-          case 'response.delta':
-          case 'response.text.delta':
-          case 'response.audio_transcript.delta':
-          case 'response.output_text.delta': {
+          // Response started - tutor is speaking
+          case 'response.created':
+          case 'response.started': {
+            setIsTutorSpeaking(true)
+            break
+          }
+
+          // ONLY capture audio transcript deltas (what was actually spoken)
+          case 'response.audio_transcript.delta': {
             const chunk = extractDeltaText(event.delta)
             if (chunk) {
+              console.log('[Audio Transcript Delta]', chunk)
               bufferRef.current += chunk
             }
             break
           }
 
-          // Response completion - commit to transcript and show as bubble
-          case 'response.completed':
-          case 'response.text.done':
-          case 'response.audio_transcript.done':
-          case 'response.output_text.done': {
+          // ONLY capture audio transcript completion (what was actually spoken)
+          case 'response.audio_transcript.done': {
             if (bufferRef.current.trim()) {
               const message = bufferRef.current.trim()
+              console.log('[Audio Transcript Complete]', message)
               addTurn('tutor', message)
               addTutorMessage(message)
               bufferRef.current = ''
             }
+            break
+          }
+
+          // Response fully completed - stop speaking indicator
+          case 'response.done':
+          case 'response.completed': {
+            setIsTutorSpeaking(false)
             break
           }
 
@@ -129,6 +141,12 @@ export function useRealtime() {
   // Start realtime session
   const start = useCallback(async (config: RealtimeConfig) => {
     try {
+      // Prevent multiple simultaneous connections
+      if (peerRef.current) {
+        console.warn('[Start] Connection already exists, cannot start new one')
+        return
+      }
+
       setStatus('connecting')
       setError(null)
 
@@ -169,14 +187,32 @@ export function useRealtime() {
         peer.addTrack(track, stream)
       })
 
-      // Handle incoming audio
+      // Handle incoming audio - ONLY create one audio element
       peer.ontrack = (event) => {
-        console.log('[Audio Track]', event.streams[0])
+        console.log('[Audio Track]', event.track.kind, event.streams.length)
+
+        // Only handle audio tracks, ignore any other tracks
+        if (event.track.kind !== 'audio') {
+          console.log('[Skipping non-audio track]', event.track.kind)
+          return
+        }
+
+        // If we already have an audio element, just update its stream
+        if (audioElementRef.current) {
+          console.log('[Reusing existing audio element]')
+          const [remoteStream] = event.streams
+          audioElementRef.current.srcObject = remoteStream
+          return
+        }
+
+        // Create single audio element only once
+        console.log('[Creating new audio element]')
         const [remoteStream] = event.streams
         const audioElement = document.createElement('audio')
         audioElement.autoplay = true
         audioElement.srcObject = remoteStream
         document.body.appendChild(audioElement)
+        audioElementRef.current = audioElement
       }
 
       // 4. Create data channel for text
@@ -317,6 +353,12 @@ export function useRealtime() {
       streamRef.current = null
     }
 
+    if (audioElementRef.current) {
+      audioElementRef.current.srcObject = null
+      audioElementRef.current.remove()
+      audioElementRef.current = null
+    }
+
     setMicActive(false)
     bufferRef.current = ''
   }, [])
@@ -338,6 +380,7 @@ export function useRealtime() {
     status,
     error,
     micActive,
+    isTutorSpeaking,
     start,
     sendText,
     stop,

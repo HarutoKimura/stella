@@ -11,9 +11,14 @@ import { FloatingBubble } from './FloatingBubble'
 export function BubbleContainer() {
   const bubbles = useBubbleStore((state) => state.bubbles)
   const removeBubble = useBubbleStore((state) => state.removeBubble)
+  const showTutorTranscript = useBubbleStore((state) => state.showTutorTranscript)
 
   // Separate bubbles into left (conversation) and right (corrections)
-  const conversationBubbles = bubbles.filter(b => b.type === 'tutor' || b.type === 'user')
+  // Filter out tutor messages if showTutorTranscript is false
+  const conversationBubbles = bubbles.filter(b => {
+    if (b.type === 'tutor' && !showTutorTranscript) return false
+    return b.type === 'tutor' || b.type === 'user'
+  })
   const correctionBubbles = bubbles.filter(b =>
     b.type === 'grammar' || b.type === 'vocab' || b.type === 'pron' || b.type === 'target' || b.type === 'recurring'
   )
