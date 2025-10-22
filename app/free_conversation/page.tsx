@@ -227,14 +227,14 @@ export default function FreeConversationPage() {
             </div>
           )}
 
-          {/* Centered Orb - Animated AI Tutor Visual */}
+          {/* Centered Orb - Static AI Tutor Visual */}
           <div className="flex flex-col items-center justify-center mt-12">
             <div style={{ width: '100%', maxWidth: '600px', height: '600px', position: 'relative' }}>
               <Orb
                 hue={0}
-                hoverIntensity={0.5}
-                rotateOnHover={true}
-                forceHoverState={isTutorSpeaking}
+                hoverIntensity={0}
+                rotateOnHover={false}
+                forceHoverState={false}
               />
             </div>
             {isTutorSpeaking && (
