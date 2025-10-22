@@ -3,7 +3,6 @@
 import { OrbBG } from '@/components/OrbBG'
 import { IntentCaption } from '@/components/IntentCaption'
 import { BubbleContainer } from '@/components/BubbleContainer'
-import { DemoBubbleButton } from '@/components/DemoBubbleButton'
 import Orb from '@/components/Orb'
 import SpotlightCard from '@/components/SpotlightCard'
 import { useSessionStore } from '@/lib/sessionStore'
@@ -158,7 +157,6 @@ export default function FreeConversationPage() {
     <OrbBG>
       <IntentCaption />
       <BubbleContainer />
-      <DemoBubbleButton />
       <div className="min-h-screen p-6 pb-40">
         <div className="max-w-7xl mx-auto">
           <div className="mb-4 flex items-center justify-between">
