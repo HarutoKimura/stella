@@ -92,7 +92,7 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
       }`}
       style={{
         ...position,
-        width: '280px',
+        width: '360px',
         pointerEvents: 'auto',
         perspective: '1000px',
       }}
@@ -122,16 +122,16 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
             thickness={2}
             style={{ borderRadius: 16 }}
           >
-            <div className="bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl">
+            <div className="bg-slate-900/95 backdrop-blur-md p-5 rounded-2xl">
               {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{card.icon}</span>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{card.icon}</span>
                   <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">
+                    <h3 className="text-white font-semibold text-base leading-tight">
                       {card.topic}
                     </h3>
-                    <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 mt-1">
+                    <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 mt-1">
                       {card.cefr}
                     </span>
                   </div>
@@ -141,7 +141,7 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
                     e.stopPropagation()
                     handleDismiss()
                   }}
-                  className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mt-1"
+                  className="text-gray-500 hover:text-white transition-colors text-2xl leading-none -mt-1"
                   aria-label="Dismiss"
                 >
                   ×
@@ -149,15 +149,15 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
               </div>
 
               {/* Example Sentence */}
-              <div className="bg-slate-800/60 rounded-lg p-3 border border-cyan-500/20 mb-3">
-                <p className="text-xs text-gray-400 mb-1 font-medium">Try saying:</p>
-                <p className="text-sm text-white leading-relaxed">
+              <div className="bg-slate-800/60 rounded-lg p-4 border border-cyan-500/20 mb-3">
+                <p className="text-sm text-gray-400 mb-2 font-medium">Try saying:</p>
+                <p className="text-base text-white leading-relaxed">
                   "{card.exampleSentence}"
                 </p>
               </div>
 
               {/* Flip hint */}
-              <p className="text-[10px] text-cyan-400 text-center animate-pulse">
+              <p className="text-xs text-cyan-400 text-center animate-pulse">
                 👆 Click to see useful phrases
               </p>
             </div>
@@ -180,16 +180,16 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
             thickness={2}
             style={{ borderRadius: 16 }}
           >
-            <div className="bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl">
+            <div className="bg-slate-900/95 backdrop-blur-md p-5 rounded-2xl">
               {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">💬</span>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">💬</span>
                   <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">
+                    <h3 className="text-white font-semibold text-base leading-tight">
                       Useful Phrases
                     </h3>
-                    <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 mt-1">
+                    <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 mt-1">
                       {card.topic}
                     </span>
                   </div>
@@ -199,7 +199,7 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
                     e.stopPropagation()
                     handleDismiss()
                   }}
-                  className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mt-1"
+                  className="text-gray-500 hover:text-white transition-colors text-2xl leading-none -mt-1"
                   aria-label="Dismiss"
                 >
                   ×
@@ -207,11 +207,11 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
               </div>
 
               {/* Useful Phrases List */}
-              <div className="bg-slate-800/60 rounded-lg p-3 border border-pink-500/20 mb-3">
-                <ul className="space-y-2">
+              <div className="bg-slate-800/60 rounded-lg p-4 border border-pink-500/20 mb-3">
+                <ul className="space-y-3">
                   {card.usefulPhrases.map((phrase, idx) => (
-                    <li key={idx} className="text-xs text-white leading-relaxed flex items-start gap-2">
-                      <span className="text-pink-400 mt-0.5">•</span>
+                    <li key={idx} className="text-sm text-white leading-relaxed flex items-start gap-2">
+                      <span className="text-pink-400 mt-1 text-base">•</span>
                       <span>"{phrase}"</span>
                     </li>
                   ))}
@@ -219,7 +219,7 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
               </div>
 
               {/* Flip back hint */}
-              <p className="text-[10px] text-pink-400 text-center animate-pulse">
+              <p className="text-xs text-pink-400 text-center animate-pulse">
                 👆 Click to flip back
               </p>
             </div>
