@@ -47,20 +47,49 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
     }, 300)
   }
 
-  // Calculate position based on index to prevent overlap
-  // Each card takes approximately 180px height with padding
-  const topPosition = 80 + (index * 200) // Start at 80px, add 200px per card
+  // Calculate random position around the orb using entire screen space
+  // Avoid only the bottom input box area
+  const [position] = useState(() => {
+    // All possible positions spread across the entire screen
+    const allPositions = [
+      { angle: -90, distance: 320 },   // Top
+      { angle: -135, distance: 340 },  // Top-left
+      { angle: -45, distance: 340 },   // Top-right
+      { angle: 180, distance: 350 },   // Left
+      { angle: 0, distance: 350 },     // Right
+      { angle: -160, distance: 300 },  // Far left
+      { angle: -20, distance: 300 },   // Far right
+      { angle: -110, distance: 380 },  // Upper-left far
+      { angle: -70, distance: 380 },   // Upper-right far
+      { angle: 150, distance: 330 },   // Lower-left
+      { angle: 30, distance: 330 },    // Lower-right
+    ]
+
+    // Randomly select a position
+    const randomIndex = Math.floor(Math.random() * allPositions.length)
+    const pos = allPositions[randomIndex]
+    const angleInRadians = (pos.angle * Math.PI) / 180
+
+    // Calculate position relative to center
+    const xOffset = Math.cos(angleInRadians) * pos.distance
+    const yOffset = Math.sin(angleInRadians) * pos.distance
+
+    return {
+      left: `calc(50% + ${xOffset}px)`,
+      top: `calc(50% + ${yOffset}px)`,
+      transform: 'translate(-50%, -50%)',
+    }
+  })
 
   return (
     <div
       className={`fixed z-40 transition-all duration-500 ease-out ${
         isVisible && !isDismissing
-          ? 'opacity-100 translate-x-0'
-          : 'opacity-0 translate-x-12'
+          ? 'opacity-100 scale-100'
+          : 'opacity-0 scale-95'
       }`}
       style={{
-        top: `${topPosition}px`,
-        right: '20px',
+        ...position,
         maxWidth: '280px',
         pointerEvents: 'auto',
       }}
