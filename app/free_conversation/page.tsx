@@ -12,11 +12,15 @@ import { parseTextIntent, executeIntent } from '@/lib/intentRouter'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabaseClient'
+import { FloatingTopicContainer } from '@/components/FloatingTopicContainer'
+import { TopicCardData } from '@/components/FloatingTopicCard'
+import { detectConversationStruggle, generateFloatingTopicCards } from '@/lib/topicSuggestions'
 
 export default function FreeConversationPage() {
   const [input, setInput] = useState('')
   const sessionId = useSessionStore((state) => state.sessionId)
   const user = useSessionStore((state) => state.user)
+  const transcript = useSessionStore((state) => state.transcript)
   const startSession = useSessionStore((state) => state.startSession)
   const setUser = useSessionStore((state) => state.setUser)
   const addUserMessage = useBubbleStore((state) => state.addUserMessage)
@@ -24,6 +28,10 @@ export default function FreeConversationPage() {
   const toggleTutorTranscript = useBubbleStore((state) => state.toggleTutorTranscript)
   const router = useRouter()
   const supabase = createClient()
+
+  // Floating topic cards state
+  const [floatingCards, setFloatingCards] = useState<TopicCardData[]>([])
+  const [hasShownCards, setHasShownCards] = useState(false)
 
   // Realtime connection
   const { status, error, micActive, isTutorSpeaking, start, sendText, stop } = useRealtime()
@@ -41,6 +49,25 @@ export default function FreeConversationPage() {
     init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Monitor conversation for struggle patterns and show cards automatically
+  useEffect(() => {
+    if (!user || !sessionId || transcript.length < 4 || hasShownCards) return
+
+    const isStruggling = detectConversationStruggle(transcript)
+
+    if (isStruggling && floatingCards.length === 0) {
+      // Generate 2-3 floating topic cards based on user's CEFR level
+      const cards = generateFloatingTopicCards(user.cefr)
+      setFloatingCards(cards)
+      setHasShownCards(true)
+
+      // Reset the flag after 60 seconds so cards can appear again if needed
+      setTimeout(() => {
+        setHasShownCards(false)
+      }, 60000)
+    }
+  }, [transcript, user, sessionId, floatingCards, hasShownCards])
 
   const initSession = async () => {
     // Load user
@@ -124,6 +151,10 @@ export default function FreeConversationPage() {
     }
   }
 
+  const handleDismissFloatingCard = (cardId: string) => {
+    setFloatingCards((prev) => prev.filter((card) => card.id !== cardId))
+  }
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
@@ -157,6 +188,13 @@ export default function FreeConversationPage() {
     <OrbBG>
       <IntentCaption />
       <BubbleContainer />
+
+      {/* Floating Topic Cards */}
+      <FloatingTopicContainer
+        cards={floatingCards}
+        onDismiss={handleDismissFloatingCard}
+      />
+
       <div className="min-h-screen p-6 pb-40">
         <div className="max-w-7xl mx-auto">
           <div className="mb-4 flex items-center justify-between">
@@ -219,6 +257,22 @@ export default function FreeConversationPage() {
                     title={showTutorTranscript ? 'Hide tutor transcript' : 'Show tutor transcript'}
                   >
                     {showTutorTranscript ? '👁️ Tutor' : '🚫 Tutor'}
+                  </button>
+                </SpotlightCard>
+                {/* Topic suggestions button */}
+                <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(125, 249, 255, 0.3)">
+                  <button
+                    onClick={() => {
+                      if (user && floatingCards.length === 0) {
+                        const cards = generateFloatingTopicCards(user.cefr)
+                        setFloatingCards(cards)
+                      }
+                    }}
+                    className="text-cyan-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
+                    title="Get topic suggestions"
+                    disabled={floatingCards.length > 0}
+                  >
+                    💡 Topics
                   </button>
                 </SpotlightCard>
               </div>
