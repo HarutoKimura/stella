@@ -224,6 +224,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'I usually wake up at 7 AM and have breakfast with my family',
         icon: '🌅',
         cefr: 'A1',
+        usefulPhrases: [
+          'I wake up at...',
+          'I have breakfast at...',
+          'I go to bed around...',
+          'Every morning, I...',
+        ],
       },
       {
         id: 'a1-favorite-food',
@@ -231,6 +237,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'My favorite food is sushi because it tastes fresh and delicious',
         icon: '🍱',
         cefr: 'A1',
+        usefulPhrases: [
+          'I like...',
+          'I don\'t like...',
+          'It tastes...',
+          'My favorite is...',
+        ],
       },
       {
         id: 'a1-weather',
@@ -238,6 +250,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Today is sunny and warm. I like this kind of weather',
         icon: '🌤️',
         cefr: 'A1',
+        usefulPhrases: [
+          'It\'s sunny today',
+          'It\'s cold outside',
+          'I like warm weather',
+          'The weather is nice',
+        ],
       },
     ],
     A2: [
@@ -247,6 +265,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'This weekend, I plan to visit a museum with my friends',
         icon: '🎯',
         cefr: 'A2',
+        usefulPhrases: [
+          'I\'m planning to...',
+          'I might...',
+          'I\'d like to...',
+          'I\'m going to...',
+        ],
       },
       {
         id: 'a2-hobbies',
@@ -254,6 +278,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'In my free time, I enjoy reading mystery novels and playing guitar',
         icon: '🎨',
         cefr: 'A2',
+        usefulPhrases: [
+          'I enjoy...',
+          'I spend time...',
+          'I\'m interested in...',
+          'I like to...',
+        ],
       },
       {
         id: 'a2-vacation',
@@ -261,6 +291,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Last summer, I traveled to Kyoto and visited many beautiful temples',
         icon: '✈️',
         cefr: 'A2',
+        usefulPhrases: [
+          'Last year, I went to...',
+          'It was amazing because...',
+          'I really enjoyed...',
+          'The best part was...',
+        ],
       },
     ],
     B1: [
@@ -270,6 +306,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'I hope to become a software engineer and work on innovative projects',
         icon: '💼',
         cefr: 'B1',
+        usefulPhrases: [
+          'I hope to...',
+          'My goal is to...',
+          'I\'m working towards...',
+          'In the future, I want to...',
+        ],
       },
       {
         id: 'b1-technology',
@@ -277,6 +319,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Smartphones have changed how we communicate and access information',
         icon: '📱',
         cefr: 'B1',
+        usefulPhrases: [
+          'Technology has changed...',
+          'It has both advantages and disadvantages',
+          'On one hand... on the other hand...',
+          'I think that...',
+        ],
       },
       {
         id: 'b1-culture',
@@ -284,6 +332,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'In Japan, we bow when greeting, while in America, people shake hands',
         icon: '🌍',
         cefr: 'B1',
+        usefulPhrases: [
+          'In my culture, we...',
+          'It\'s interesting that...',
+          'Compared to...',
+          'One difference is...',
+        ],
       },
     ],
     B2: [
@@ -293,6 +347,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'I believe education inequality is a serious problem that needs addressing',
         icon: '⚖️',
         cefr: 'B2',
+        usefulPhrases: [
+          'I believe that...',
+          'This is a serious issue because...',
+          'We should consider...',
+          'One solution might be...',
+        ],
       },
       {
         id: 'b2-balance',
@@ -300,6 +360,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Companies should encourage flexible hours to help employees manage stress',
         icon: '⚖️',
         cefr: 'B2',
+        usefulPhrases: [
+          'It\'s important to maintain...',
+          'Companies should...',
+          'Employees need to...',
+          'In my opinion...',
+        ],
       },
       {
         id: 'b2-environment',
@@ -307,6 +373,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'We need to reduce plastic consumption and invest in renewable energy',
         icon: '♻️',
         cefr: 'B2',
+        usefulPhrases: [
+          'We need to...',
+          'It\'s crucial that...',
+          'One way to address this is...',
+          'If we don\'t act...',
+        ],
       },
     ],
     C1: [
@@ -316,6 +388,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'AI development raises complex questions about privacy and autonomy',
         icon: '🤔',
         cefr: 'C1',
+        usefulPhrases: [
+          'This raises the question of...',
+          'One could argue that...',
+          'From an ethical standpoint...',
+          'We must consider the implications of...',
+        ],
       },
       {
         id: 'c1-economics',
@@ -323,6 +401,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Economic globalization has both benefits and drawbacks for developing nations',
         icon: '📊',
         cefr: 'C1',
+        usefulPhrases: [
+          'The impact of... cannot be understated',
+          'This phenomenon has led to...',
+          'There are compelling arguments on both sides',
+          'The long-term consequences include...',
+        ],
       },
       {
         id: 'c1-innovation',
@@ -330,6 +414,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Technological disruption is reshaping traditional industries at an unprecedented pace',
         icon: '🚀',
         cefr: 'C1',
+        usefulPhrases: [
+          'This represents a paradigm shift in...',
+          'The transformative potential of...',
+          'We\'re witnessing unprecedented changes',
+          'This trend is likely to accelerate',
+        ],
       },
     ],
     C2: [
@@ -339,6 +429,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Existentialist thought challenges our assumptions about meaning and purpose',
         icon: '🧠',
         cefr: 'C2',
+        usefulPhrases: [
+          'This philosophical framework posits that...',
+          'One might contend that...',
+          'The epistemological implications...',
+          'This challenges the fundamental notion of...',
+        ],
       },
       {
         id: 'c2-literature',
@@ -346,6 +442,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Postmodern literature often deconstructs narrative conventions and reader expectations',
         icon: '📚',
         cefr: 'C2',
+        usefulPhrases: [
+          'The author employs metafictional techniques',
+          'This work subverts traditional...',
+          'The narrative structure itself becomes...',
+          'There\'s an inherent tension between...',
+        ],
       },
       {
         id: 'c2-science',
@@ -353,6 +455,12 @@ export function generateFloatingTopicCards(cefr: string): TopicCardData[] {
         exampleSentence: 'Quantum computing could revolutionize cryptography and computational modeling',
         icon: '🔬',
         cefr: 'C2',
+        usefulPhrases: [
+          'The theoretical underpinnings of...',
+          'This represents a fundamental breakthrough',
+          'The ramifications extend beyond...',
+          'This could fundamentally alter our understanding of...',
+        ],
       },
     ],
   }
