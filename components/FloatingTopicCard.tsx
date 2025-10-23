@@ -47,18 +47,9 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
     }, 300)
   }
 
-  // Calculate position based on index
-  const getPosition = () => {
-    const positions = [
-      { top: '20%', right: '5%' },
-      { top: '35%', right: '3%' },
-      { top: '50%', right: '6%' },
-      { bottom: '25%', right: '4%' },
-    ]
-    return positions[index % positions.length]
-  }
-
-  const position = getPosition()
+  // Calculate position based on index to prevent overlap
+  // Each card takes approximately 180px height with padding
+  const topPosition = 80 + (index * 200) // Start at 80px, add 200px per card
 
   return (
     <div
@@ -68,7 +59,8 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
           : 'opacity-0 translate-x-12'
       }`}
       style={{
-        ...position,
+        top: `${topPosition}px`,
+        right: '20px',
         maxWidth: '280px',
         pointerEvents: 'auto',
       }}
