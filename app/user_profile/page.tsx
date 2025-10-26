@@ -2,12 +2,18 @@
 
 import { OrbBG } from '@/components/OrbBG'
 import { ProfileCards } from '@/components/ProfileCards'
+import { PersonalizedInsights } from '@/components/PersonalizedInsights'
+import { SessionHistory } from '@/components/SessionHistory'
 import { createClient } from '@/lib/supabaseClient'
 import { DbTarget, DbFluencySnapshot } from '@/lib/schema'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import SpotlightCard from '@/components/SpotlightCard'
+
+type TabType = 'overview' | 'insights' | 'history'
 
 export default function UserProfilePage() {
+  const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [displayName, setDisplayName] = useState('')
   const [cefr, setCefr] = useState('B1')
   const [masteredCount, setMasteredCount] = useState(0)
@@ -176,12 +182,52 @@ export default function UserProfilePage() {
             </button>
           </div>
 
-          {/* Stats cards */}
-          <ProfileCards
-            masteredCount={masteredCount}
-            weeklyMasteredCount={weeklyMasteredCount}
-            fluencyData={fluencyData}
-          />
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                activeTab === 'overview'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              📊 Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('insights')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                activeTab === 'insights'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              💡 Insights
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                activeTab === 'history'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              📜 History
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {activeTab === 'overview' && (
+            <ProfileCards
+              masteredCount={masteredCount}
+              weeklyMasteredCount={weeklyMasteredCount}
+              fluencyData={fluencyData}
+            />
+          )}
+
+          {activeTab === 'insights' && <PersonalizedInsights />}
+
+          {activeTab === 'history' && <SessionHistory />}
         </div>
       </div>
     </OrbBG>
