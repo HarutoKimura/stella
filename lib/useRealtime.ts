@@ -32,6 +32,102 @@ export function useRealtime() {
   const markTargetUsed = useSessionStore((state) => state.markTargetUsed)
   const addTutorMessage = useBubbleStore((state) => state.addTutorMessage)
 
+  // Handle function calls from the AI tutor
+  const handleFunctionCall = useCallback(async (event: any) => {
+    const functionName = event.name || event.function?.name
+    const args = event.arguments
+      ? typeof event.arguments === 'string'
+        ? JSON.parse(event.arguments)
+        : event.arguments
+      : {}
+
+    console.log('[Function Call Handler]', functionName, args)
+
+    try {
+      switch (functionName) {
+        case 'create_user_goal':
+        case 'change_user_goal': {
+          const { goalDescription, timeline, currentSkills } = args
+          const isChanging = functionName === 'change_user_goal'
+
+          // Call the existing goal generation API
+          const response = await fetch('/api/goal/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              goalDescription,
+              timeline,
+              currentSkills,
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to create goal')
+          }
+
+          const data = await response.json()
+          console.log(
+            `[Goal ${isChanging ? 'Changed' : 'Created'}]`,
+            data.goalId
+          )
+
+          // Send minimal success response back to AI (no user-facing message)
+          const channel = channelRef.current
+          if (channel && channel.readyState === 'open') {
+            channel.send(
+              JSON.stringify({
+                type: 'conversation.item.create',
+                item: {
+                  type: 'function_call_output',
+                  call_id: event.call_id || event.id,
+                  output: JSON.stringify({
+                    success: true,
+                    // No message - AI should NOT announce goal creation
+                  }),
+                },
+              })
+            )
+
+            // Trigger AI response to continue conversation naturally
+            channel.send(
+              JSON.stringify({
+                type: 'response.create',
+                response: {
+                  modalities: ['text', 'audio'],
+                },
+              })
+            )
+          }
+
+          break
+        }
+
+        default:
+          console.warn('[Unknown Function]', functionName)
+      }
+    } catch (err) {
+      console.error('[Function Call Error]', err)
+
+      // Send error response back to AI
+      const channel = channelRef.current
+      if (channel && channel.readyState === 'open') {
+        channel.send(
+          JSON.stringify({
+            type: 'conversation.item.create',
+            item: {
+              type: 'function_call_output',
+              call_id: event.call_id || event.id,
+              output: JSON.stringify({
+                success: false,
+                error: err instanceof Error ? err.message : 'Unknown error',
+              }),
+            },
+          })
+        )
+      }
+    }
+  }, [])
+
   // Extract text from nested delta structure
   const extractDeltaText = (delta: any): string => {
     if (!delta) return ''
@@ -118,10 +214,14 @@ export function useRealtime() {
           }
 
           // Function calls (from Realtime API tools)
-          case 'response.function_call_arguments.done':
-          case 'conversation.item.input_audio_transcription.completed': {
+          case 'response.function_call_arguments.done': {
             console.log('[Function Call]', event)
-            // These would be handled by the realtime session config
+            handleFunctionCall(event)
+            break
+          }
+
+          case 'conversation.item.input_audio_transcription.completed': {
+            console.log('[Audio Transcription]', event)
             break
           }
 

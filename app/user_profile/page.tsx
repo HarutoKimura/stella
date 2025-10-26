@@ -4,16 +4,17 @@ import { OrbBG } from '@/components/OrbBG'
 import { ProfileCards } from '@/components/ProfileCards'
 import { PersonalizedInsights } from '@/components/PersonalizedInsights'
 import { SessionHistory } from '@/components/SessionHistory'
+import { GoalProgressDashboard } from '@/components/GoalProgressDashboard'
 import { createClient } from '@/lib/supabaseClient'
 import { DbTarget, DbFluencySnapshot } from '@/lib/schema'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import SpotlightCard from '@/components/SpotlightCard'
 
-type TabType = 'overview' | 'insights' | 'history'
+type TabType = 'goal' | 'overview' | 'insights' | 'history'
 
 export default function UserProfilePage() {
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [activeTab, setActiveTab] = useState<TabType>('goal')
   const [displayName, setDisplayName] = useState('')
   const [cefr, setCefr] = useState('B1')
   const [masteredCount, setMasteredCount] = useState(0)
@@ -129,12 +130,12 @@ export default function UserProfilePage() {
       <div className="min-h-screen p-6">
         <div className="max-w-5xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-white">My Profile</h1>
+            <h1 className="text-3xl font-bold text-white">My Progress</h1>
             <a
-              href="/home"
-              className="text-white hover:text-blue-300 transition-colors"
+              href="/free_conversation"
+              className="text-white hover:text-blue-300 transition-colors text-sm font-medium"
             >
-              ← Back to Home
+              💬 Back to Conversation
             </a>
           </div>
 
@@ -183,10 +184,20 @@ export default function UserProfilePage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('goal')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'goal'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              🎯 My Goal
+            </button>
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'bg-blue-600 text-white'
                   : 'bg-white/10 text-gray-300 hover:bg-white/20'
@@ -196,9 +207,9 @@ export default function UserProfilePage() {
             </button>
             <button
               onClick={() => setActiveTab('insights')}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
                 activeTab === 'insights'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-cyan-600 text-white'
                   : 'bg-white/10 text-gray-300 hover:bg-white/20'
               }`}
             >
@@ -206,7 +217,7 @@ export default function UserProfilePage() {
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
                 activeTab === 'history'
                   ? 'bg-green-600 text-white'
                   : 'bg-white/10 text-gray-300 hover:bg-white/20'
@@ -217,6 +228,8 @@ export default function UserProfilePage() {
           </div>
 
           {/* Tab content */}
+          {activeTab === 'goal' && <GoalProgressDashboard />}
+
           {activeTab === 'overview' && (
             <ProfileCards
               masteredCount={masteredCount}

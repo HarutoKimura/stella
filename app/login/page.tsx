@@ -43,7 +43,7 @@ export default function LoginPage() {
         })
       }
 
-      router.push('/home')
+      router.push('/free_conversation')
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -74,7 +74,7 @@ export default function LoginPage() {
         })
       }
 
-      router.push('/home')
+      router.push('/free_conversation')
     } catch (err: any) {
       setError(err.message)
     } finally {

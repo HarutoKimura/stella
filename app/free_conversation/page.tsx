@@ -112,6 +112,10 @@ export default function FreeConversationPage() {
         body: JSON.stringify({ cefr }),
       })
 
+      if (!plannerRes.ok) {
+        throw new Error('Failed to generate learning plan')
+      }
+
       const microPack = await plannerRes.json()
 
       // Create session in DB
@@ -199,7 +203,7 @@ export default function FreeConversationPage() {
         <div className="max-w-7xl mx-auto">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-lg font-bold text-white">Free Conversation</h1>
+              <h1 className="text-lg font-bold text-white">Stella</h1>
               {/* Connection status indicator */}
               <SpotlightCard className="!p-2 !rounded-lg" spotlightColor="rgba(59, 130, 246, 0.3)">
                 <div className="flex items-center gap-2">
@@ -278,10 +282,10 @@ export default function FreeConversationPage() {
               </div>
             </div>
             <a
-              href="/home"
-              className="text-white hover:text-blue-300 transition-colors text-xs"
+              href="/user_profile"
+              className="text-white hover:text-blue-300 transition-colors text-sm font-medium"
             >
-              ← Home
+              📊 My Progress
             </a>
           </div>
 

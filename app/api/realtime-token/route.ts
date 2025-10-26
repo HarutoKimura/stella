@@ -41,8 +41,18 @@ export async function POST(req: NextRequest) {
 
     const activeTargets = targets?.map((t) => t.phrase) || []
 
+    // Check if user has a goal already
+    const { data: userGoal } = await supabase
+      .from('users')
+      .select('goal_id')
+      .eq('id', profile.id)
+      .single()
+
+    const hasGoal = userGoal && userGoal.goal_id
+
     // Build system prompt
-    const systemPrompt = `You are a friendly English tutor helping Japanese learners practice everyday conversation (CEFR: ${profile.cefr_level}).
+    const systemPrompt = hasGoal
+      ? `You are a friendly English tutor helping Japanese learners practice everyday conversation (CEFR: ${profile.cefr_level}).
 
 CONVERSATION GOALS:
 - Have natural, engaging conversations about everyday topics
@@ -68,6 +78,97 @@ STYLE:
 - The student can communicate via voice OR text - respond naturally to both
 
 Remember: Natural conversation comes first. Target phrases are secondary and should only be introduced when they genuinely fit the context.`
+      : `You are a friendly English tutor helping Japanese learners (CEFR: ${profile.cefr_level}).
+
+FIRST-TIME USER - NATURAL TEACHING:
+This student doesn't have a learning goal yet. Discover what they want through natural conversation, then start teaching immediately.
+
+CONVERSATION FLOW:
+1. Greet warmly: "Hi! What brings you here today?"
+2. Listen and ask 1-2 follow-up questions
+3. Once you understand (usually 2-4 exchanges), call create_user_goal() silently
+4. IMMEDIATELY start teaching - don't announce that you created anything
+5. Just transition naturally into the first lesson
+
+EXAMPLES:
+User: "I need English for job interviews"
+You: "Great! When's your interview?"
+User: "Next month"
+You: [Call create_user_goal silently]
+You: "Let's practice introducing yourself. Repeat after me: 'I have 5 years of experience in...'"
+
+User: "I want to travel to Europe"
+You: [Call create_user_goal silently]
+You: "Perfect! Let's start with a useful airport phrase. Try saying: 'Where is the baggage claim?'"
+
+CRITICAL RULES:
+- DON'T say "I've created a plan"
+- DON'T say "Your goal has been set"
+- DON'T announce goal creation at all
+- JUST seamlessly transition into teaching
+- Make it feel like ONE continuous conversation
+
+Remember: The user should never know a "goal" was created. They're just talking to their tutor.`
+
+    // Define tools for the AI tutor
+    const tools = hasGoal
+      ? [
+          // Allow changing goal even if they have one
+          {
+            type: 'function',
+            name: 'change_user_goal',
+            description:
+              'Silently update the learning goal when user wants to change focus. Call when they say "I want to change my goal", "Actually I need English for...", etc. Then continue teaching naturally without announcing the change.',
+            parameters: {
+              type: 'object',
+              properties: {
+                goalDescription: {
+                  type: 'string',
+                  description:
+                    'The NEW goal they want to achieve. Be specific based on conversation.',
+                },
+                timeline: {
+                  type: 'string',
+                  description: 'New timeline if mentioned. Optional.',
+                },
+                currentSkills: {
+                  type: 'string',
+                  description: 'Updated skill description if mentioned. Optional.',
+                },
+              },
+              required: ['goalDescription'],
+            },
+          },
+        ]
+      : [
+          {
+            type: 'function',
+            name: 'create_user_goal',
+            description:
+              'Silently create a learning goal based on conversation. Call this after understanding what they want (2-4 exchanges), then immediately start teaching. DO NOT announce that you created a goal.',
+            parameters: {
+              type: 'object',
+              properties: {
+                goalDescription: {
+                  type: 'string',
+                  description:
+                    'What the user wants to achieve with English, based on the conversation. Be specific (e.g., "preparing for job interviews at tech companies" not just "job interviews")',
+                },
+                timeline: {
+                  type: 'string',
+                  description:
+                    'When they need to achieve this goal (e.g., "1 month", "3 months", "before summer trip"). Optional.',
+                },
+                currentSkills: {
+                  type: 'string',
+                  description:
+                    'Their current English skill level or what they can/cannot do (e.g., "can read but struggle speaking", "complete beginner"). Optional.',
+                },
+              },
+              required: ['goalDescription'],
+            },
+          },
+        ]
 
     // Request ephemeral token from OpenAI
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
@@ -83,6 +184,7 @@ Remember: Natural conversation comes first. Target phrases are secondary and sho
         modalities: ['text', 'audio'],
         input_audio_format: 'pcm16',
         output_audio_format: 'pcm16',
+        tools: tools.length > 0 ? tools : undefined,
       }),
     })
 
