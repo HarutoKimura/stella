@@ -45,6 +45,11 @@ export const SessionSummaryInSchema = z.object({
     example: z.string(),
     correction: z.string(),
   })),
+  transcript: z.array(z.object({
+    role: z.enum(["user", "tutor"]),
+    text: z.string(),
+    timestamp: z.number(),
+  })).optional(),
   metrics: z.object({
     wpm: z.number().optional(),
     filler_rate: z.number().optional(),

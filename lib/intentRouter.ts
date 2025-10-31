@@ -187,7 +187,7 @@ async function endSessionFlow() {
     const usedTargets = store.activeTargets.filter((t) => t.used).map((t) => t.phrase)
     const missedTargets = store.activeTargets.filter((t) => !t.used).map((t) => t.phrase)
 
-    // Call summarize API
+    // Call summarize API with full transcript
     await fetch('/api/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -196,6 +196,7 @@ async function endSessionFlow() {
         usedTargets,
         missedTargets,
         corrections: [], // Collected from transcript
+        transcript: store.transcript, // Include full transcript before clearing
         metrics: {
           wpm: 0, // TODO: Calculate from timing
           filler_rate: 0,
@@ -204,12 +205,15 @@ async function endSessionFlow() {
       }),
     })
 
+    // Store sessionId before clearing
+    const sessionIdForReview = store.sessionId
+
     // Reset store
     store.endSession()
 
-    // Navigate home
-    if (typeof window !== 'undefined') {
-      window.location.href = '/home'
+    // Navigate to session review page
+    if (typeof window !== 'undefined' && sessionIdForReview) {
+      window.location.href = `/session-review/${sessionIdForReview}`
     }
 
     store.setIntent(null)

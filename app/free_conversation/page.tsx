@@ -119,7 +119,18 @@ export default function FreeConversationPage() {
         body: JSON.stringify({ cefr }),
       })
 
+      if (!plannerRes.ok) {
+        const errorData = await plannerRes.json()
+        console.error('Planner API error:', errorData)
+        throw new Error(errorData.error || 'Failed to generate micro-pack')
+      }
+
       const microPack = await plannerRes.json()
+
+      if (!microPack.targets || !Array.isArray(microPack.targets)) {
+        console.error('Invalid microPack response:', microPack)
+        throw new Error('Invalid response from planner')
+      }
 
       // Create session in DB
       const { data: session } = await supabase
@@ -169,6 +180,52 @@ export default function FreeConversationPage() {
     setFloatingCards((prev) => prev.filter((card) => card.id !== cardId))
   }
 
+  const handleStopSession = async () => {
+    // Stop WebRTC connection
+    stop()
+
+    // Save session and redirect to review
+    const activeTargets = useSessionStore.getState().activeTargets
+    const currentTranscript = useSessionStore.getState().transcript
+    const currentSessionId = useSessionStore.getState().sessionId
+
+    if (!currentSessionId) return
+
+    try {
+      // Collect used/missed targets
+      const usedTargets = activeTargets.filter((t) => t.used).map((t) => t.phrase)
+      const missedTargets = activeTargets.filter((t) => !t.used).map((t) => t.phrase)
+
+      // Call summarize API with full transcript
+      await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: currentSessionId,
+          usedTargets,
+          missedTargets,
+          corrections: [], // TODO: Extract from transcript
+          transcript: currentTranscript,
+          metrics: {
+            wpm: 0,
+            filler_rate: 0,
+            avg_pause_ms: 0,
+          },
+        }),
+      })
+
+      // Clear session from store
+      useSessionStore.getState().endSession()
+
+      // Navigate to review page
+      router.push(`/session-review/${currentSessionId}`)
+    } catch (error) {
+      console.error('Failed to save session:', error)
+      // Still redirect to home on error
+      router.push('/home')
+    }
+  }
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
@@ -180,9 +237,10 @@ export default function FreeConversationPage() {
       const intent = parseTextIntent(message)
       if (intent.type !== 'unknown') {
         if (intent.type === 'stop') {
-          stop()
+          await handleStopSession()
+        } else {
+          await executeIntent(intent)
         }
-        await executeIntent(intent)
         setInput('')
         return
       }
@@ -267,7 +325,7 @@ export default function FreeConversationPage() {
                 {status === 'connected' || status === 'connecting' ? (
                   <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(239, 68, 68, 0.3)">
                     <button
-                      onClick={stop}
+                      onClick={handleStopSession}
                       className="text-red-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
                     >
                       ⏹️ Stop

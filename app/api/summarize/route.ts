@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     const userId = userProfile.id
 
-    // Update session summary
+    // Update session summary with transcript
     await supabase
       .from('sessions')
       .update({
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
           usedTargets: input.usedTargets,
           missedTargets: input.missedTargets,
           corrections: input.corrections,
+          transcript: input.transcript || [], // Save full transcript
         },
       })
       .eq('id', input.sessionId)
