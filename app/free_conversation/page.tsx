@@ -18,6 +18,7 @@ import { detectConversationStruggle, generateFloatingTopicCards } from '@/lib/to
 
 export default function FreeConversationPage() {
   const [input, setInput] = useState('')
+  const [selectedCorrectionMode, setSelectedCorrectionMode] = useState<'immediate' | 'balanced' | 'gentle' | null>(null)
   const sessionId = useSessionStore((state) => state.sessionId)
   const user = useSessionStore((state) => state.user)
   const transcript = useSessionStore((state) => state.transcript)
@@ -82,7 +83,7 @@ export default function FreeConversationPage() {
 
     const { data: profile } = await supabase
       .from('users')
-      .select('id, display_name, cefr_level')
+      .select('id, display_name, cefr_level, correction_mode')
       .eq('auth_user_id', authUser.id)
       .single()
 
@@ -97,14 +98,20 @@ export default function FreeConversationPage() {
       cefr: profile.cefr_level,
     })
 
-    // If no active session, start one
-    if (!sessionId) {
-      await startNewSession(profile.id, profile.cefr_level)
-    }
+    // Load user's last correction mode preference (optional, for suggestion)
+    setSelectedCorrectionMode(profile.correction_mode || null)
+
+    // Don't auto-start session - let user choose correction mode first
   }
 
-  const startNewSession = async (userId: string, cefr: string) => {
+  const startNewSession = async (userId: string, cefr: string, correctionMode: 'immediate' | 'balanced' | 'gentle') => {
     try {
+      // Save correction mode preference to user profile
+      await supabase
+        .from('users')
+        .update({ correction_mode: correctionMode })
+        .eq('id', userId)
+
       // Get micro-pack from planner
       const plannerRes = await fetch('/api/planner', {
         method: 'POST',
@@ -141,13 +148,20 @@ export default function FreeConversationPage() {
         microPack.targets.map((t: any) => t.phrase)
       )
 
-      // Start realtime connection
+      // Start realtime connection (will use saved correction_mode from DB)
       await start({
         userId,
         sessionId: session.id,
       })
     } catch (error) {
       console.error('Failed to start session:', error)
+    }
+  }
+
+  const handleCorrectionModeSelect = async (mode: 'immediate' | 'balanced' | 'gentle') => {
+    setSelectedCorrectionMode(mode)
+    if (user?.id && user?.cefr) {
+      await startNewSession(user.id, user.cefr, mode)
     }
   }
 
@@ -220,18 +234,36 @@ export default function FreeConversationPage() {
                 </div>
               </SpotlightCard>
 
+              {/* Correction Mode Indicator */}
+              {status === 'connected' && selectedCorrectionMode && (
+                <SpotlightCard
+                  className="!p-2 !rounded-lg"
+                  spotlightColor={
+                    selectedCorrectionMode === 'immediate'
+                      ? 'rgba(239, 68, 68, 0.3)'
+                      : selectedCorrectionMode === 'balanced'
+                      ? 'rgba(250, 204, 21, 0.3)'
+                      : 'rgba(34, 197, 94, 0.3)'
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">
+                      {selectedCorrectionMode === 'immediate' && '🔴'}
+                      {selectedCorrectionMode === 'balanced' && '🟡'}
+                      {selectedCorrectionMode === 'gentle' && '🟢'}
+                    </span>
+                    <span className="text-xs text-gray-300 capitalize">
+                      {selectedCorrectionMode === 'immediate' && 'Immediate Corrections'}
+                      {selectedCorrectionMode === 'balanced' && 'Balanced Corrections'}
+                      {selectedCorrectionMode === 'gentle' && 'Gentle Corrections'}
+                    </span>
+                  </div>
+                </SpotlightCard>
+              )}
+
               {/* Session control buttons */}
               <div className="flex items-center gap-2">
-                {status === 'idle' || status === 'disconnected' || status === 'error' ? (
-                  <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(34, 197, 94, 0.3)">
-                    <button
-                      onClick={() => user?.id && startNewSession(user.id, user.cefr)}
-                      className="text-green-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
-                    >
-                      ▶️ Start
-                    </button>
-                  </SpotlightCard>
-                ) : null}
+                {/* Start button removed - users choose correction mode cards instead */}
                 {status === 'connected' || status === 'connecting' ? (
                   <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(239, 68, 68, 0.3)">
                     <button
@@ -293,8 +325,9 @@ export default function FreeConversationPage() {
             </SpotlightCard>
           )}
 
-          {/* Centered Orb - Static AI Tutor Visual */}
-          <div className="flex flex-col items-center justify-center mt-12">
+          {/* Centered Orb with Correction Mode Selection Overlay */}
+          <div className="flex flex-col items-center justify-center mt-12 relative">
+            {/* Orb Background */}
             <div style={{ width: '100%', maxWidth: '600px', height: '600px', position: 'relative' }}>
               <Orb
                 hue={0}
@@ -303,6 +336,91 @@ export default function FreeConversationPage() {
                 forceHoverState={false}
               />
             </div>
+
+            {/* Correction Mode Selection - Overlaid on orb before session starts */}
+            {(status === 'idle' || status === 'disconnected' || status === 'error') && !sessionId && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 px-4">
+                <h2 className="text-2xl font-bold text-white text-center mb-2">
+                  Choose Your Correction Style
+                </h2>
+                <p className="text-gray-400 text-center mb-6 max-w-2xl">
+                  How would you like to receive feedback during this session?
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                  {/* Immediate Mode */}
+                  <SpotlightCard
+                    className="!p-4 cursor-pointer hover:scale-105 transition-transform backdrop-blur-md"
+                    spotlightColor="rgba(239, 68, 68, 0.4)"
+                    onClick={() => handleCorrectionModeSelect('immediate')}
+                  >
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">🔴</div>
+                      <h3 className="text-lg font-bold text-white mb-1">Immediate</h3>
+                      <p className="text-xs text-gray-300 mb-2">
+                        Stop & correct every error
+                      </p>
+                      <div className="text-xs text-gray-400 space-y-1 text-left">
+                        <p>✓ AI interrupts immediately</p>
+                        <p>✓ Prevents bad habits</p>
+                        <p>✓ Best for serious learners</p>
+                      </div>
+                    </div>
+                  </SpotlightCard>
+
+                  {/* Balanced Mode */}
+                  <SpotlightCard
+                    className="!p-4 cursor-pointer hover:scale-105 transition-transform !border-yellow-500/50 backdrop-blur-md"
+                    spotlightColor="rgba(250, 204, 21, 0.4)"
+                    onClick={() => handleCorrectionModeSelect('balanced')}
+                  >
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">🟡</div>
+                      <h3 className="text-lg font-bold text-white mb-1">Balanced</h3>
+                      <p className="text-xs text-gray-300 mb-2">
+                        Correct every 2-3 turns
+                      </p>
+                      <div className="text-xs text-gray-400 space-y-1 text-left">
+                        <p>✓ Natural conversation flow</p>
+                        <p>✓ Batch important errors</p>
+                        <p>✓ Recommended for most</p>
+                      </div>
+                      <div className="mt-2 inline-block px-2 py-0.5 bg-yellow-500/20 rounded-full">
+                        <span className="text-xs text-yellow-400 font-semibold">RECOMMENDED</span>
+                      </div>
+                    </div>
+                  </SpotlightCard>
+
+                  {/* Gentle Mode */}
+                  <SpotlightCard
+                    className="!p-4 cursor-pointer hover:scale-105 transition-transform backdrop-blur-md"
+                    spotlightColor="rgba(34, 197, 94, 0.4)"
+                    onClick={() => handleCorrectionModeSelect('gentle')}
+                  >
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">🟢</div>
+                      <h3 className="text-lg font-bold text-white mb-1">Gentle</h3>
+                      <p className="text-xs text-gray-300 mb-2">
+                        Only major errors
+                      </p>
+                      <div className="text-xs text-gray-400 space-y-1 text-left">
+                        <p>✓ Builds confidence first</p>
+                        <p>✓ Minimal interruptions</p>
+                        <p>✓ Best for beginners</p>
+                      </div>
+                    </div>
+                  </SpotlightCard>
+                </div>
+
+                {selectedCorrectionMode && (
+                  <p className="text-center text-gray-400 text-xs mt-4">
+                    💡 Last time: <span className="text-white font-semibold capitalize">{selectedCorrectionMode}</span> mode
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* AI Tutor speaking indicator - shown during active session */}
             {isTutorSpeaking && (
               <SpotlightCard className="mt-6 !p-4" spotlightColor="rgba(59, 130, 246, 0.3)">
                 <p className="text-xl text-blue-300 animate-pulse font-medium">

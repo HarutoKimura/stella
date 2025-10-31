@@ -59,12 +59,15 @@ export const PlannerInputSchema = z.object({
 });
 
 // Database types
+export type CorrectionMode = 'immediate' | 'balanced' | 'gentle';
+
 export type DbUser = {
   id: string;
   auth_user_id: string;
   display_name: string | null;
   native_language: string;
   cefr_level: string;
+  correction_mode: CorrectionMode;
   created_at: string;
 };
 

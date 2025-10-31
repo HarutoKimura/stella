@@ -6,7 +6,7 @@ import { SessionHistory } from '@/components/SessionHistory'
 import { LearningInsights } from '@/components/LearningInsights'
 import { PhraseLibrary } from '@/components/PhraseLibrary'
 import { createClient } from '@/lib/supabaseClient'
-import { DbTarget, DbFluencySnapshot } from '@/lib/schema'
+import { DbTarget, DbFluencySnapshot, CorrectionMode } from '@/lib/schema'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -16,6 +16,7 @@ export default function UserProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [displayName, setDisplayName] = useState('')
   const [cefr, setCefr] = useState('B1')
+  const [correctionMode, setCorrectionMode] = useState<CorrectionMode>('balanced')
   const [masteredCount, setMasteredCount] = useState(0)
   const [weeklyMasteredCount, setWeeklyMasteredCount] = useState(0)
   const [fluencyData, setFluencyData] = useState<DbFluencySnapshot[]>([])
@@ -52,6 +53,7 @@ export default function UserProfilePage() {
 
       setDisplayName(profile.display_name || '')
       setCefr(profile.cefr_level)
+      setCorrectionMode(profile.correction_mode || 'balanced')
 
       // Get mastered targets count
       const { data: targets } = await supabase
@@ -104,6 +106,7 @@ export default function UserProfilePage() {
         .update({
           display_name: displayName,
           cefr_level: cefr,
+          correction_mode: correctionMode,
         })
         .eq('auth_user_id', authUser.id)
 
@@ -172,6 +175,39 @@ export default function UserProfilePage() {
                   <option value="C2">C2 - Proficient</option>
                 </select>
               </div>
+            </div>
+
+            {/* Correction Mode Selector */}
+            <div className="mb-4">
+              <label className="block text-white text-sm font-medium mb-2">
+                ⚡ Correction Mode
+              </label>
+              <select
+                value={correctionMode}
+                onChange={(e) => setCorrectionMode(e.target.value as CorrectionMode)}
+                className="w-full px-4 py-2 rounded-lg bg-white/10 border border-blue-500/30 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="immediate">
+                  Immediate - Stop & correct every error (Best for serious learners)
+                </option>
+                <option value="balanced">
+                  Balanced - Correct every 2-3 turns (Default, recommended)
+                </option>
+                <option value="gentle">
+                  Gentle - Only major errors (Best for beginners)
+                </option>
+              </select>
+              <p className="text-gray-400 text-sm mt-2">
+                {correctionMode === 'immediate' && (
+                  <>🔴 AI will interrupt and correct you immediately. Great for preventing bad habits!</>
+                )}
+                {correctionMode === 'balanced' && (
+                  <>🟡 AI will batch corrections every few turns. Keeps conversation flowing naturally.</>
+                )}
+                {correctionMode === 'gentle' && (
+                  <>🟢 AI focuses on major errors only. Perfect for building confidence!</>
+                )}
+              </p>
             </div>
 
             <button
