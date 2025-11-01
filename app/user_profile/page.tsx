@@ -5,12 +5,13 @@ import { ProfileCards } from '@/components/ProfileCards'
 import { SessionHistory } from '@/components/SessionHistory'
 import { LearningInsights } from '@/components/LearningInsights'
 import { PhraseLibrary } from '@/components/PhraseLibrary'
+import { StatisticalDashboard } from '@/components/StatisticalDashboard'
 import { createClient } from '@/lib/supabaseClient'
 import { DbTarget, DbFluencySnapshot, CorrectionMode } from '@/lib/schema'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type TabType = 'overview' | 'history' | 'insights' | 'phrases'
+type TabType = 'overview' | 'history' | 'insights' | 'phrases' | 'statistics'
 
 export default function UserProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>('overview')
@@ -231,6 +232,16 @@ export default function UserProfilePage() {
               📊 Overview
             </button>
             <button
+              onClick={() => setActiveTab('statistics')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'statistics'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              📈 Statistics
+            </button>
+            <button
               onClick={() => setActiveTab('history')}
               className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
                 activeTab === 'history'
@@ -270,6 +281,8 @@ export default function UserProfilePage() {
               fluencyData={fluencyData}
             />
           )}
+
+          {activeTab === 'statistics' && <StatisticalDashboard />}
 
           {activeTab === 'history' && <SessionHistory />}
 
