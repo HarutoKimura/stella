@@ -15,9 +15,22 @@ interface DashboardStats {
   cefrTrajectory: DbCefrTrajectory[]
 }
 
+type Correction = {
+  type: 'grammar' | 'vocab' | 'pron'
+  example: string
+  correction: string
+  error_type?: string
+  severity?: string
+  reason?: string
+  issue_type?: string
+}
+
 export function StatisticalDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showGrammarErrors, setShowGrammarErrors] = useState(false)
+  const [showVocabErrors, setShowVocabErrors] = useState(false)
+  const [latestCorrections, setLatestCorrections] = useState<Correction[]>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -62,6 +75,19 @@ export function StatisticalDashboard() {
         .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
         .limit(5)
+
+      // Get latest session's corrections (for error details)
+      const { data: latestSession } = await supabase
+        .from('sessions')
+        .select('summary')
+        .eq('user_id', profile.id)
+        .not('ended_at', 'is', null)
+        .order('ended_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      const corrections: Correction[] = latestSession?.summary?.corrections || []
+      setLatestCorrections(corrections)
 
       // Calculate current EGI (average of last 3 sessions)
       const recentEGI = metrics?.slice(0, 3).map(m => m.egi_score) || []
@@ -152,6 +178,8 @@ export function StatisticalDashboard() {
           score={latestMetric.grammar_score}
           color="green"
           details={`${latestMetric.grammar_errors} error${latestMetric.grammar_errors !== 1 ? 's' : ''}`}
+          onClick={() => setShowGrammarErrors(!showGrammarErrors)}
+          clickable={latestCorrections.filter(c => c.type === 'grammar').length > 0}
         />
         <ScoreCard
           icon="📚"
@@ -159,6 +187,8 @@ export function StatisticalDashboard() {
           score={latestMetric.vocabulary_score}
           color="purple"
           details={`${latestMetric.unique_words} unique words`}
+          onClick={() => setShowVocabErrors(!showVocabErrors)}
+          clickable={latestCorrections.filter(c => c.type === 'vocab').length > 0}
         />
         <ScoreCard
           icon="🧠"
@@ -182,6 +212,116 @@ export function StatisticalDashboard() {
           details="English Growth Index"
         />
       </div>
+
+      {/* Grammar Errors Details (expandable) */}
+      {showGrammarErrors && latestCorrections.filter(c => c.type === 'grammar').length > 0 && (
+        <SpotlightCard className="!p-6" spotlightColor="rgba(239, 68, 68, 0.2)">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>📝</span>
+              <span>Your Grammar Mistakes</span>
+              <span className="text-sm text-gray-400 font-normal">
+                (from latest session)
+              </span>
+            </h3>
+            <button
+              onClick={() => setShowGrammarErrors(false)}
+              className="text-gray-400 hover:text-white text-sm"
+            >
+              ✕ Close
+            </button>
+          </div>
+          <div className="space-y-4">
+            {latestCorrections.filter(c => c.type === 'grammar').map((error, idx) => (
+              <div key={idx} className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-red-400 text-lg flex-shrink-0">❌</span>
+                  <div className="flex-1">
+                    <p className="text-red-200 text-sm mb-1 font-medium">You said:</p>
+                    <p className="text-white">&ldquo;{error.example}&rdquo;</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-green-400 text-lg flex-shrink-0">✅</span>
+                  <div className="flex-1">
+                    <p className="text-green-200 text-sm mb-1 font-medium">Correct:</p>
+                    <p className="text-white font-semibold">&ldquo;{error.correction}&rdquo;</p>
+                  </div>
+                </div>
+                {error.error_type && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded">
+                      {error.error_type}
+                    </span>
+                    {error.severity && (
+                      <span className={`px-2 py-1 rounded ${
+                        error.severity === 'major'
+                          ? 'bg-orange-500/20 text-orange-300'
+                          : 'bg-yellow-500/20 text-yellow-300'
+                      }`}>
+                        {error.severity}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </SpotlightCard>
+      )}
+
+      {/* Vocabulary Issues Details (expandable) */}
+      {showVocabErrors && latestCorrections.filter(c => c.type === 'vocab').length > 0 && (
+        <SpotlightCard className="!p-6" spotlightColor="rgba(168, 85, 247, 0.2)">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>📚</span>
+              <span>Your Vocabulary Suggestions</span>
+              <span className="text-sm text-gray-400 font-normal">
+                (from latest session)
+              </span>
+            </h3>
+            <button
+              onClick={() => setShowVocabErrors(false)}
+              className="text-gray-400 hover:text-white text-sm"
+            >
+              ✕ Close
+            </button>
+          </div>
+          <div className="space-y-4">
+            {latestCorrections.filter(c => c.type === 'vocab').map((issue, idx) => (
+              <div key={idx} className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-purple-400 text-lg flex-shrink-0">💬</span>
+                  <div className="flex-1">
+                    <p className="text-purple-200 text-sm mb-1 font-medium">You said:</p>
+                    <p className="text-white">&ldquo;{issue.example}&rdquo;</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-cyan-400 text-lg flex-shrink-0">✨</span>
+                  <div className="flex-1">
+                    <p className="text-cyan-200 text-sm mb-1 font-medium">Try this instead:</p>
+                    <p className="text-white font-semibold">&ldquo;{issue.correction}&rdquo;</p>
+                  </div>
+                </div>
+                {issue.reason && (
+                  <div className="bg-cyan-500/10 border border-cyan-500/20 rounded p-2 text-sm text-cyan-200">
+                    💡 {issue.reason}
+                  </div>
+                )}
+                {issue.issue_type && (
+                  <div className="mt-2">
+                    <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
+                      {issue.issue_type}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </SpotlightCard>
+      )}
 
       {/* This Week's Progress */}
       {stats.weeklyProgress && (
@@ -260,12 +400,16 @@ function ScoreCard({
   score,
   color,
   details,
+  onClick,
+  clickable,
 }: {
   icon: string
   label: string
   score: number
   color: string
   details?: string
+  onClick?: () => void
+  clickable?: boolean
 }) {
   const colorMap: Record<string, string> = {
     blue: 'from-blue-500 to-blue-600',
@@ -277,7 +421,10 @@ function ScoreCard({
   }
 
   return (
-    <SpotlightCard className="!p-4">
+    <SpotlightCard
+      className={`!p-4 ${clickable ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+      onClick={clickable ? onClick : undefined}
+    >
       <div className="text-center">
         <div className="text-3xl mb-2">{icon}</div>
         <div className="text-sm text-gray-400 mb-1">{label}</div>
@@ -285,6 +432,12 @@ function ScoreCard({
           {score}
         </div>
         {details && <div className="text-xs text-gray-500 mt-1">{details}</div>}
+        {clickable && (
+          <div className="text-xs text-gray-400 mt-2 flex items-center justify-center gap-1">
+            <span>👁️</span>
+            <span>View details</span>
+          </div>
+        )}
       </div>
     </SpotlightCard>
   )

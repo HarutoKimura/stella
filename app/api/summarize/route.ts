@@ -71,17 +71,21 @@ export async function POST(req: NextRequest) {
       if (analyzeResponse.ok) {
         const analysis = await analyzeResponse.json()
 
-        // Convert comprehensive analysis to corrections format
+        // Convert comprehensive analysis to corrections format with metadata
         const grammarCorrections = (analysis.grammar_errors || []).map((err: any) => ({
           type: 'grammar' as const,
           example: err.text,
           correction: err.correction,
+          error_type: err.error_type,
+          severity: err.severity,
         }))
 
         const vocabCorrections = (analysis.vocabulary_issues || []).map((issue: any) => ({
           type: 'vocab' as const,
           example: issue.text,
           correction: issue.suggestion,
+          reason: issue.reason,
+          issue_type: issue.issue_type,
         }))
 
         comprehensiveCorrections = [...grammarCorrections, ...vocabCorrections]

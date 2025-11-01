@@ -16,6 +16,10 @@ type Correction = {
   type: 'grammar' | 'vocab' | 'pron'
   example: string
   correction: string
+  error_type?: string
+  severity?: string
+  reason?: string
+  issue_type?: string
 }
 
 type SessionData = {
@@ -170,8 +174,9 @@ export default function SessionReviewPage() {
   const totalTurns = session.student_turns + session.tutor_turns
   const speakingPercentage = totalTurns > 0 ? Math.round((session.student_turns / totalTurns) * 100) : 0
 
-  // Get top 3 corrections for "Key Feedback"
-  const keyCorrections = corrections.slice(0, 3)
+  // Separate grammar and vocabulary errors
+  const grammarErrors = corrections.filter(c => c.type === 'grammar')
+  const vocabIssues = corrections.filter(c => c.type === 'vocab')
 
   // Combine missed targets and wishlist
   const allPhrasesToPractice = [...missedTargets]
@@ -204,42 +209,114 @@ export default function SessionReviewPage() {
             </div>
           </div>
 
-          {/* Key Feedback Section */}
-          {keyCorrections.length > 0 ? (
-            <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(59, 130, 246, 0.2)">
+          {/* Grammar Errors Section */}
+          {grammarErrors.length > 0 && (
+            <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(239, 68, 68, 0.2)">
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <span>🔍</span>
-                <span>Key Feedback</span>
+                <span>📝</span>
+                <span>Grammar Corrections</span>
+                <span className="text-sm text-gray-400 font-normal">({grammarErrors.length})</span>
               </h2>
               <div className="space-y-4">
-                {keyCorrections.map((correction, idx) => (
-                  <div key={idx} className="border-l-2 border-blue-500 pl-4">
-                    <div className="flex items-start gap-2 mb-1">
-                      <span className="text-red-300 text-sm">❌</span>
-                      <p className="text-gray-300 text-sm flex-1">"{correction.example}"</p>
+                {grammarErrors.map((error, idx) => (
+                  <div key={idx} className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-shrink-0">
+                        <span className="text-red-400 text-lg">❌</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-red-200 text-sm mb-1 font-medium">You said:</p>
+                        <p className="text-white">&ldquo;{error.example}&rdquo;</p>
+                      </div>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-300 text-sm">✅</span>
-                      <p className="text-white text-sm flex-1 font-medium">"{correction.correction}"</p>
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-shrink-0">
+                        <span className="text-green-400 text-lg">✅</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-green-200 text-sm mb-1 font-medium">Better:</p>
+                        <p className="text-white font-semibold">&ldquo;{error.correction}&rdquo;</p>
+                      </div>
                     </div>
+                    {error.error_type && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded">
+                          {error.error_type}
+                        </span>
+                        {error.severity && (
+                          <span className={`px-2 py-1 rounded ${
+                            error.severity === 'major'
+                              ? 'bg-orange-500/20 text-orange-300'
+                              : 'bg-yellow-500/20 text-yellow-300'
+                          }`}>
+                            {error.severity}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-              {corrections.length > 3 && (
-                <p className="text-gray-400 text-xs mt-4">
-                  + {corrections.length - 3} more corrections in transcript below
-                </p>
-              )}
             </SpotlightCard>
-          ) : (
+          )}
+
+          {/* Vocabulary Issues Section */}
+          {vocabIssues.length > 0 && (
+            <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(168, 85, 247, 0.2)">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <span>📚</span>
+                <span>Vocabulary Suggestions</span>
+                <span className="text-sm text-gray-400 font-normal">({vocabIssues.length})</span>
+              </h2>
+              <div className="space-y-4">
+                {vocabIssues.map((issue, idx) => (
+                  <div key={idx} className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-shrink-0">
+                        <span className="text-purple-400 text-lg">💬</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-purple-200 text-sm mb-1 font-medium">You said:</p>
+                        <p className="text-white">&ldquo;{issue.example}&rdquo;</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-shrink-0">
+                        <span className="text-cyan-400 text-lg">✨</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-cyan-200 text-sm mb-1 font-medium">Try this instead:</p>
+                        <p className="text-white font-semibold">&ldquo;{issue.correction}&rdquo;</p>
+                      </div>
+                    </div>
+                    {issue.reason && (
+                      <div className="bg-cyan-500/10 border border-cyan-500/20 rounded p-2 text-sm text-cyan-200">
+                        💡 {issue.reason}
+                      </div>
+                    )}
+                    {issue.issue_type && (
+                      <div className="mt-2">
+                        <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
+                          {issue.issue_type}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </SpotlightCard>
+          )}
+
+          {/* No Errors - Encouragement */}
+          {grammarErrors.length === 0 && vocabIssues.length === 0 && (
             <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(34, 197, 94, 0.2)">
               <div className="text-center">
                 <div className="text-5xl mb-3">🎉</div>
-                <h2 className="text-xl font-bold text-green-300 mb-2">Great session!</h2>
+                <h2 className="text-xl font-bold text-green-300 mb-2">Excellent session!</h2>
                 <p className="text-gray-400 text-sm">
                   {transcript.length > 0
-                    ? "Nice effort! Keep practicing to build fluency."
-                    : "Every conversation is a step forward. Keep it up!"}
+                    ? "Great job! No major errors detected. Keep up the good work!"
+                    : "Every conversation is a step forward. Keep practicing!"}
                 </p>
               </div>
             </SpotlightCard>
