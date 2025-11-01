@@ -187,6 +187,7 @@ export default function FreeConversationPage() {
     // Save session and redirect to review
     const activeTargets = useSessionStore.getState().activeTargets
     const currentTranscript = useSessionStore.getState().transcript
+    const currentCorrections = useSessionStore.getState().corrections
     const currentSessionId = useSessionStore.getState().sessionId
 
     if (!currentSessionId) return
@@ -196,7 +197,7 @@ export default function FreeConversationPage() {
       const usedTargets = activeTargets.filter((t) => t.used).map((t) => t.phrase)
       const missedTargets = activeTargets.filter((t) => !t.used).map((t) => t.phrase)
 
-      // Call summarize API with full transcript
+      // Call summarize API with full transcript and corrections
       await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,7 +205,7 @@ export default function FreeConversationPage() {
           sessionId: currentSessionId,
           usedTargets,
           missedTargets,
-          corrections: [], // TODO: Extract from transcript
+          corrections: currentCorrections,
           transcript: currentTranscript,
           metrics: {
             wpm: 0,

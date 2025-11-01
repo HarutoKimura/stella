@@ -187,7 +187,7 @@ async function endSessionFlow() {
     const usedTargets = store.activeTargets.filter((t) => t.used).map((t) => t.phrase)
     const missedTargets = store.activeTargets.filter((t) => !t.used).map((t) => t.phrase)
 
-    // Call summarize API with full transcript
+    // Call summarize API with full transcript and corrections
     await fetch('/api/summarize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -195,7 +195,7 @@ async function endSessionFlow() {
         sessionId: store.sessionId,
         usedTargets,
         missedTargets,
-        corrections: [], // Collected from transcript
+        corrections: store.corrections,
         transcript: store.transcript, // Include full transcript before clearing
         metrics: {
           wpm: 0, // TODO: Calculate from timing

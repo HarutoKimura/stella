@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
     // Get user profile for system prompt
     const { data: profile } = await supabase
       .from('users')
-      .select('id, display_name, cefr_level')
+      .select('id, display_name, cefr_level, correction_mode')
       .eq('auth_user_id', authUser.id)
       .single()
 
@@ -140,8 +140,8 @@ export async function POST(req: NextRequest) {
     const activeTargets = targets?.map((t) => t.phrase) || []
 
     // Get correction mode and feedback style
-    // Default to 'balanced' since correction_mode column might not exist yet
-    const correctionMode: CorrectionMode = 'balanced'
+    // Use user's preference, default to 'balanced' if not set
+    const correctionMode: CorrectionMode = (profile.correction_mode as CorrectionMode) || 'balanced'
     const feedbackStyle = getFeedbackStyle(profile.cefr_level)
 
     // Build system prompt dynamically

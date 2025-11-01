@@ -6,8 +6,23 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useSessionStore, TranscriptTurn } from './sessionStore'
+import { useSessionStore } from './sessionStore'
 import { useBubbleStore } from './bubbleStore'
+import { parseCorrections, containsCorrection } from './correctionParser'
+
+type VADState = {
+  audioContext: AudioContext | null
+  analyser: AnalyserNode | null
+  dataArray: Uint8Array | null
+  rafId: number | null
+  speaking: boolean
+  silenceStartedAt: number | null
+  recordingStartedAt: number | null
+}
+
+const SPEECH_RMS_THRESHOLD = 0.02
+const SILENCE_DURATION_MS = 750
+const MIN_UTTERANCE_MS = 500
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -28,9 +43,232 @@ export function useRealtime() {
   const audioElementRef = useRef<HTMLAudioElement | null>(null)
   const bufferRef = useRef<string>('')
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const vadRef = useRef<VADState>({
+    audioContext: null,
+    analyser: null,
+    dataArray: null,
+    rafId: null,
+    speaking: false,
+    silenceStartedAt: null,
+    recordingStartedAt: null,
+  })
+
   const addTurn = useSessionStore((state) => state.addTurn)
-  const markTargetUsed = useSessionStore((state) => state.markTargetUsed)
+  const addCorrection = useSessionStore((state) => state.addCorrection)
   const addTutorMessage = useBubbleStore((state) => state.addTutorMessage)
+  const addUserMessage = useBubbleStore((state) => state.addUserMessage)
+
+  const lastUserMessageRef = useRef<string>('')
+
+  const processTranscription = useCallback(
+    async (blob: Blob) => {
+      try {
+        const formData = new FormData()
+        formData.append('audio', blob, 'speech.webm')
+
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          body: formData,
+        })
+
+        let data: any = null
+        try {
+          data = await response.json()
+        } catch {
+          data = null
+        }
+
+        if (!response.ok || !data) {
+          const message =
+            (data && typeof data.error === 'string' && data.error) ||
+            `Transcription request failed (${response.status})`
+          throw new Error(message)
+        }
+
+        const text = typeof data.text === 'string' ? data.text.trim() : ''
+
+        if (text) {
+          addTurn('user', text)
+          addUserMessage(text)
+          lastUserMessageRef.current = text
+        }
+      } catch (err) {
+        console.error('[Transcription Error]', err)
+      }
+    },
+    [addTurn, addUserMessage]
+  )
+
+  const startRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current
+    if (!recorder) return
+    if (recorder.state === 'recording') return
+
+    audioChunksRef.current = []
+
+    try {
+      recorder.start()
+      vadRef.current.recordingStartedAt = Date.now()
+    } catch (error) {
+      console.error('[MediaRecorder] start failed', error)
+    }
+  }, [])
+
+  const stopRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current
+    if (!recorder) return
+    if (recorder.state !== 'recording') return
+
+    try {
+      recorder.stop()
+    } catch (error) {
+      console.error('[MediaRecorder] stop failed', error)
+    }
+  }, [])
+
+  const setupMediaRecorder = useCallback(
+    (stream: MediaStream) => {
+      if (typeof window === 'undefined' || typeof MediaRecorder === 'undefined') {
+        console.warn('[MediaRecorder] not supported in this environment')
+        return
+      }
+
+      try {
+        const options: MediaRecorderOptions = {}
+        if (typeof MediaRecorder.isTypeSupported === 'function') {
+          if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+            options.mimeType = 'audio/webm;codecs=opus'
+          } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+            options.mimeType = 'audio/webm'
+          }
+        }
+
+        const recorder = new MediaRecorder(stream, options)
+        mediaRecorderRef.current = recorder
+
+        recorder.addEventListener('dataavailable', (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunksRef.current.push(event.data)
+          }
+        })
+
+        recorder.addEventListener('stop', async () => {
+          const chunks = audioChunksRef.current
+          audioChunksRef.current = []
+
+          const startedAt = vadRef.current.recordingStartedAt
+          vadRef.current.recordingStartedAt = null
+
+          if (!chunks.length) {
+            return
+          }
+
+          if (startedAt && Date.now() - startedAt < MIN_UTTERANCE_MS) {
+            return
+          }
+
+          const mimeType = recorder.mimeType || 'audio/webm'
+          const blob = new Blob(chunks, { type: mimeType })
+
+          await processTranscription(blob)
+        })
+      } catch (error) {
+        console.error('[MediaRecorder] initialization failed', error)
+        mediaRecorderRef.current = null
+      }
+    },
+    [processTranscription]
+  )
+
+  const setupVoiceActivityDetection = useCallback(
+    (stream: MediaStream) => {
+      if (typeof window === 'undefined' || typeof AudioContext === 'undefined') {
+        console.warn('[VAD] AudioContext not available')
+        return
+      }
+
+      try {
+        const audioContext = new AudioContext()
+        const analyser = audioContext.createAnalyser()
+        analyser.fftSize = 1024
+
+        const source = audioContext.createMediaStreamSource(stream)
+        source.connect(analyser)
+
+        const dataArray = new Uint8Array(analyser.fftSize)
+
+        vadRef.current.audioContext = audioContext
+        vadRef.current.analyser = analyser
+        vadRef.current.dataArray = dataArray
+        vadRef.current.rafId = null
+        vadRef.current.speaking = false
+        vadRef.current.silenceStartedAt = null
+        vadRef.current.recordingStartedAt = null
+
+        const detect = () => {
+          const { analyser, dataArray } = vadRef.current
+          if (!analyser || !dataArray) {
+            return
+          }
+
+          analyser.getByteTimeDomainData(dataArray)
+
+          let sumSquares = 0
+          for (let i = 0; i < dataArray.length; i++) {
+            const value = (dataArray[i] - 128) / 128
+            sumSquares += value * value
+          }
+
+          const rms = Math.sqrt(sumSquares / dataArray.length)
+          const now = performance.now()
+
+          if (rms > SPEECH_RMS_THRESHOLD) {
+            vadRef.current.silenceStartedAt = null
+            if (!vadRef.current.speaking) {
+              vadRef.current.speaking = true
+              startRecording()
+            }
+          } else if (vadRef.current.speaking) {
+            if (vadRef.current.silenceStartedAt === null) {
+              vadRef.current.silenceStartedAt = now
+            } else if (now - vadRef.current.silenceStartedAt > SILENCE_DURATION_MS) {
+              vadRef.current.speaking = false
+              vadRef.current.silenceStartedAt = null
+              stopRecording()
+            }
+          }
+
+          vadRef.current.rafId = requestAnimationFrame(detect)
+        }
+
+        vadRef.current.rafId = requestAnimationFrame(detect)
+      } catch (error) {
+        console.error('[VAD] initialization failed', error)
+      }
+    },
+    [startRecording, stopRecording]
+  )
+
+  const teardownVoiceActivityDetection = useCallback(() => {
+    if (vadRef.current.rafId !== null) {
+      cancelAnimationFrame(vadRef.current.rafId)
+      vadRef.current.rafId = null
+    }
+
+    const context = vadRef.current.audioContext
+    if (context) {
+      context.close().catch(() => null)
+    }
+
+    vadRef.current.audioContext = null
+    vadRef.current.analyser = null
+    vadRef.current.dataArray = null
+    vadRef.current.speaking = false
+    vadRef.current.silenceStartedAt = null
+    vadRef.current.recordingStartedAt = null
+  }, [])
 
   // Extract text from nested delta structure
   const extractDeltaText = (delta: any): string => {
@@ -96,6 +334,16 @@ export function useRealtime() {
               console.log('[Audio Transcript Complete]', message)
               addTurn('tutor', message)
               addTutorMessage(message)
+
+              // Parse and store corrections if detected
+              if (containsCorrection(message)) {
+                const detectedCorrections = parseCorrections(message, lastUserMessageRef.current)
+                detectedCorrections.forEach((correction) => {
+                  console.log('[Correction Detected]', correction)
+                  addCorrection(correction)
+                })
+              }
+
               bufferRef.current = ''
             }
             break
@@ -117,11 +365,24 @@ export function useRealtime() {
             break
           }
 
-          // Function calls (from Realtime API tools)
-          case 'response.function_call_arguments.done':
+          // User speech transcription event from Realtime API
           case 'conversation.item.input_audio_transcription.completed': {
+            const transcript =
+              typeof event.transcript === 'string'
+                ? event.transcript
+                : typeof event.text === 'string'
+                ? event.text
+                : ''
+
+            if (transcript) {
+              lastUserMessageRef.current = transcript.trim()
+            }
+            break
+          }
+
+          // Function calls (from Realtime API tools)
+          case 'response.function_call_arguments.done': {
             console.log('[Function Call]', event)
-            // These would be handled by the realtime session config
             break
           }
 
@@ -161,6 +422,9 @@ export function useRealtime() {
       })
       streamRef.current = stream
       setMicActive(true)
+
+      setupMediaRecorder(stream)
+      setupVoiceActivityDetection(stream)
 
       // 2. Create session via backend (get ephemeral token)
       console.log('[2/6] Creating session...')
@@ -291,7 +555,7 @@ export function useRealtime() {
       setStatus('error')
       cleanup()
     }
-  }, [handleRealtimeEvent])
+  }, [handleRealtimeEvent, setupMediaRecorder, setupVoiceActivityDetection])
 
   // Send text message via data channel
   const sendText = useCallback(async (message: string) => {
@@ -303,6 +567,9 @@ export function useRealtime() {
     if (!channel || channel.readyState !== 'open') {
       throw new Error('Connection is not ready')
     }
+
+    // Store user's message for correction parsing
+    lastUserMessageRef.current = message
 
     // Add to transcript immediately (optimistic update)
     addTurn('user', message)
@@ -359,9 +626,24 @@ export function useRealtime() {
       audioElementRef.current = null
     }
 
+    if (mediaRecorderRef.current) {
+      const recorder = mediaRecorderRef.current
+      if (recorder.state === 'recording') {
+        try {
+          recorder.stop()
+        } catch (error) {
+          console.error('[MediaRecorder] cleanup stop failed', error)
+        }
+      }
+      mediaRecorderRef.current = null
+    }
+
+    audioChunksRef.current = []
+    teardownVoiceActivityDetection()
+
     setMicActive(false)
     bufferRef.current = ''
-  }, [])
+  }, [teardownVoiceActivityDetection])
 
   // Stop session
   const stop = useCallback(() => {
