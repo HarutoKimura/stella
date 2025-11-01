@@ -61,9 +61,16 @@ export function useRealtime() {
   const addUserMessage = useBubbleStore((state) => state.addUserMessage)
 
   const lastUserMessageRef = useRef<string>('')
+  const isActiveRef = useRef(false)
 
   const processTranscription = useCallback(
     async (blob: Blob) => {
+      // Don't process if session is no longer active
+      if (!isActiveRef.current) {
+        console.log('[Transcription] Skipped - session inactive')
+        return
+      }
+
       try {
         const formData = new FormData()
         formData.append('audio', blob, 'speech.webm')
@@ -81,21 +88,33 @@ export function useRealtime() {
         }
 
         if (!response.ok || !data) {
+          // Don't throw if session is inactive - just log silently
+          if (!isActiveRef.current) {
+            console.log('[Transcription] Failed but session ended - ignoring')
+            return
+          }
+
           const message =
             (data && typeof data.error === 'string' && data.error) ||
             `Transcription request failed (${response.status})`
-          throw new Error(message)
+          console.warn('[Transcription Warning]', message)
+          return // Don't throw, just return
         }
 
         const text = typeof data.text === 'string' ? data.text.trim() : ''
 
-        if (text) {
+        if (text && isActiveRef.current) {
           addTurn('user', text)
           addUserMessage(text)
           lastUserMessageRef.current = text
         }
       } catch (err) {
-        console.error('[Transcription Error]', err)
+        // Only log if session is still active
+        if (isActiveRef.current) {
+          console.error('[Transcription Error]', err)
+        } else {
+          console.log('[Transcription] Error during cleanup - ignoring')
+        }
       }
     },
     [addTurn, addUserMessage]
@@ -487,6 +506,7 @@ export function useRealtime() {
       channel.addEventListener('open', () => {
         console.log('[Data Channel] Opened')
         setStatus('connected')
+        isActiveRef.current = true // Mark session as active
 
         // Send session configuration only
         // Don't trigger response.create here - let the AI initiate naturally
@@ -512,11 +532,13 @@ export function useRealtime() {
 
       channel.addEventListener('close', () => {
         console.log('[Data Channel] Closed')
+        isActiveRef.current = false // Mark as inactive when channel closes
         setStatus('disconnected')
       })
 
       channel.addEventListener('error', (err) => {
         console.error('[Data Channel Error]', err)
+        isActiveRef.current = false // Mark as inactive on error
         setError('Data channel error')
       })
 
@@ -553,6 +575,7 @@ export function useRealtime() {
       console.error('[Start Error]', err)
       setError(err.message || 'Failed to start session')
       setStatus('error')
+      isActiveRef.current = false // Mark as inactive on error
       cleanup()
     }
   }, [handleRealtimeEvent, setupMediaRecorder, setupVoiceActivityDetection])
@@ -605,6 +628,9 @@ export function useRealtime() {
 
   // Cleanup
   const cleanup = useCallback(() => {
+    // Mark session as inactive to prevent processing in-flight transcriptions
+    isActiveRef.current = false
+
     if (channelRef.current) {
       channelRef.current.close()
       channelRef.current = null

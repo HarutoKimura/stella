@@ -5,6 +5,7 @@ import { IntentCaption } from '@/components/IntentCaption'
 import { BubbleContainer } from '@/components/BubbleContainer'
 import Orb from '@/components/Orb'
 import SpotlightCard from '@/components/SpotlightCard'
+import { Stopwatch } from '@/components/Stopwatch'
 import { useSessionStore } from '@/lib/sessionStore'
 import { useBubbleStore } from '@/lib/bubbleStore'
 import { useRealtime } from '@/lib/useRealtime'
@@ -292,6 +293,13 @@ export default function FreeConversationPage() {
                   </span>
                 </div>
               </SpotlightCard>
+
+              {/* Stopwatch - Session Timer */}
+              {status === 'connected' && (
+                <SpotlightCard className="!p-2 !rounded-lg" spotlightColor="rgba(139, 92, 246, 0.3)">
+                  <Stopwatch isRunning={status === 'connected'} className="text-purple-300" />
+                </SpotlightCard>
+              )}
 
               {/* Correction Mode Indicator */}
               {status === 'connected' && selectedCorrectionMode && (
