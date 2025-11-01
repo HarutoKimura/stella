@@ -1,9 +1,13 @@
 /**
  * Metrics Calculator
  * Comprehensive statistical analysis for language learning progress
+ *
+ * NOTE: Vocabulary scoring uses lexical diversity and word sophistication,
+ * not CEFR word list matching (removed to avoid inflated scores)
  */
 
-// CEFR word list samples (simplified - in production, use comprehensive CEFR lexicon)
+// CEFR word list samples - DEPRECATED, not used in scoring
+// Keeping for potential future use with proper CEFR lexicon
 const CEFR_WORD_LISTS: Record<string, Set<string>> = {
   A1: new Set(['hello', 'yes', 'no', 'please', 'thank', 'you', 'good', 'bad', 'big', 'small']),
   A2: new Set(['because', 'before', 'after', 'always', 'never', 'sometimes', 'usually']),
@@ -303,19 +307,50 @@ function calculateScores(
   confidence_score: number
   pronunciation_score: number
 } {
+  const userTurns = input.transcript.filter(t => t.role === 'user')
+
   // Fluency score: based on WPM and filler rate
-  // Target: 120-150 WPM for intermediate learners
-  const wpmScore = Math.min(100, (metrics.wpm / 150) * 100)
-  const fillerPenalty = metrics.filler_rate * 2  // -2 points per % filler
+  // Target WPM ranges: A1=60, A2=80, B1=100, B2=120, C1=140, C2=150+
+  const targetWpm = getTargetWpmForLevel(input.userCefrLevel)
+  const wpmScore = Math.min(100, (metrics.wpm / targetWpm) * 80) // Cap at 80% for WPM alone
+  const fillerPenalty = metrics.filler_rate * 3  // -3 points per % filler (stricter)
   const fluency_score = Math.max(0, wpmScore - fillerPenalty)
 
-  // Grammar score: directly from grammar accuracy
-  const grammar_score = metrics.grammar_accuracy
+  // Grammar score: baseline + complexity - errors
+  // Start from CEFR-appropriate baseline, NOT from 100
+  const baselineGrammar = getBaselineGrammarForLevel(input.userCefrLevel)
 
-  // Vocabulary score: lexical diversity + CEFR appropriateness
-  const diversityScore = metrics.lexical_diversity * 100
-  const cefrScore = calculateCefrScore(metrics.cefr_distribution, input.userCefrLevel)
-  const vocabulary_score = (diversityScore * 0.4) + (cefrScore * 0.6)
+  // Complexity bonus: longer, more complex utterances
+  const complexityBonus = Math.min(20, metrics.mean_utterance_length * 2)
+
+  // Error penalty: -50 points per error per turn
+  const errorRate = userTurns.length > 0 ? (metrics.grammar_errors / userTurns.length) : 0
+  const errorPenalty = errorRate * 50
+
+  // Calculate grammar score (never assume perfection - cap at 95)
+  const grammar_score = userTurns.length > 0
+    ? Math.min(95, Math.max(20, baselineGrammar + complexityBonus - errorPenalty))
+    : 50 // Default to 50 if no data
+
+  // Vocabulary score: diversity + word sophistication (no fake CEFR matching)
+  // Type-token ratio: higher = more diverse vocabulary
+  const diversityScore = metrics.lexical_diversity * 100 // 0-100 scale
+
+  // Word sophistication: average word length (longer = more sophisticated)
+  const avgWordLength = metrics.total_words > 0
+    ? input.transcript.filter(t => t.role === 'user')
+        .map(t => t.text)
+        .join(' ')
+        .split(/\s+/)
+        .filter(w => w.length > 0)
+        .reduce((sum, w) => sum + w.length, 0) / metrics.total_words
+    : 0
+
+  // Target word length: A1-A2=4, B1-B2=5, C1-C2=6+
+  const targetWordLength = getTargetWordLength(input.userCefrLevel)
+  const sophisticationScore = Math.min(100, (avgWordLength / targetWordLength) * 100)
+
+  const vocabulary_score = (diversityScore * 0.6) + (sophisticationScore * 0.4)
 
   // Comprehension score: based on target usage
   const totalTargets = input.usedTargets.length + input.missedTargets.length
@@ -323,23 +358,35 @@ function calculateScores(
     ? (input.usedTargets.length / totalTargets) * 100
     : 50  // Default if no targets
 
-  // Confidence score: based on turn ratio and response time
-  // Higher turn ratio and faster responses = more confident
-  const turnConfidence = Math.min(100, metrics.turn_ratio * 1.5)  // Target ~67%
+  // Confidence score: filler rate + pause length + response speed
+  // Lower fillers = more confident
+  const fillerConfidence = Math.max(0, 100 - (metrics.filler_rate * 8)) // Heavy penalty for fillers
+
+  // Shorter pauses = more confident
+  const pauseConfidence = metrics.avg_pause_ms > 0
+    ? Math.max(0, 100 - (metrics.avg_pause_ms / 50)) // -2 points per 100ms pause
+    : 70
+
+  // Faster response = more confident
   const responseConfidence = metrics.response_time_avg_ms > 0
-    ? Math.max(0, 100 - (metrics.response_time_avg_ms / 100))  // Penalty for slow response
-    : 50
-  const confidence_score = (turnConfidence * 0.6) + (responseConfidence * 0.4)
+    ? Math.max(0, 100 - (metrics.response_time_avg_ms / 80)) // -1.25 points per 100ms
+    : 60
+
+  const confidence_score = (
+    fillerConfidence * 0.5 +
+    pauseConfidence * 0.3 +
+    responseConfidence * 0.2
+  )
 
   // Pronunciation score: based on pronunciation errors
-  const pronunciationAccuracy = input.transcript.filter(t => t.role === 'user').length
+  const pronunciationAccuracy = userTurns.length
   const pronunciation_score = pronunciationAccuracy > 0
-    ? ((pronunciationAccuracy - metrics.pronunciation_errors) / pronunciationAccuracy) * 100
+    ? Math.max(0, 100 - (metrics.pronunciation_errors / pronunciationAccuracy) * 50)
     : 50
 
   return {
     fluency_score: Math.round(Math.max(0, Math.min(100, fluency_score))),
-    grammar_score: Math.round(Math.max(0, Math.min(100, grammar_score))),
+    grammar_score: Math.round(Math.max(20, Math.min(100, grammar_score))), // Floor at 20
     vocabulary_score: Math.round(Math.max(0, Math.min(100, vocabulary_score))),
     comprehension_score: Math.round(Math.max(0, Math.min(100, comprehension_score))),
     confidence_score: Math.round(Math.max(0, Math.min(100, confidence_score))),
@@ -348,9 +395,48 @@ function calculateScores(
 }
 
 /**
- * Calculate CEFR appropriateness score
+ * Get target WPM for CEFR level
  */
-function calculateCefrScore(
+function getTargetWpmForLevel(level: string): number {
+  const targets: Record<string, number> = {
+    A1: 60, A2: 80, B1: 100, B2: 120, C1: 140, C2: 150
+  }
+  return targets[level] || 100
+}
+
+/**
+ * Get target average word length for CEFR level
+ */
+function getTargetWordLength(level: string): number {
+  const targets: Record<string, number> = {
+    A1: 4.0, A2: 4.5, B1: 5.0, B2: 5.5, C1: 6.0, C2: 6.5
+  }
+  return targets[level] || 5.0
+}
+
+/**
+ * Get baseline grammar score for CEFR level
+ * These are reasonable starting points before complexity bonuses/error penalties
+ */
+function getBaselineGrammarForLevel(level: string): number {
+  const baselines: Record<string, number> = {
+    A1: 45,  // Beginner: simple grammar expected
+    A2: 50,  // Elementary: basic structures
+    B1: 55,  // Intermediate: more variety
+    B2: 60,  // Upper-intermediate: complex structures emerging
+    C1: 65,  // Advanced: sophisticated grammar
+    C2: 70   // Proficient: near-native complexity
+  }
+  return baselines[level] || 55
+}
+
+/**
+ * Calculate CEFR appropriateness score
+ * DEPRECATED: Not currently used in scoring to avoid inflated scores
+ * Keeping for potential future use with proper CEFR lexicon
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _calculateCefrScore(
   distribution: Record<string, number>,
   userLevel: string
 ): number {

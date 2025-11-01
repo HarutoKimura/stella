@@ -53,17 +53,64 @@ export async function POST(req: NextRequest) {
       ? new Date().getTime() - new Date(sessionData.started_at).getTime()
       : 0
 
-    // Calculate comprehensive metrics
+    // COMPREHENSIVE POST-SESSION ANALYSIS
+    // Call analyze-transcript to get thorough grammar/vocabulary assessment
+    let comprehensiveCorrections = input.corrections // Fallback to tutor corrections
+    let complexityAnalysis = null
+
+    try {
+      const analyzeResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/analyze-transcript`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: input.transcript || [],
+          userCefrLevel,
+        }),
+      })
+
+      if (analyzeResponse.ok) {
+        const analysis = await analyzeResponse.json()
+
+        // Convert comprehensive analysis to corrections format
+        const grammarCorrections = (analysis.grammar_errors || []).map((err: any) => ({
+          type: 'grammar' as const,
+          example: err.text,
+          correction: err.correction,
+        }))
+
+        const vocabCorrections = (analysis.vocabulary_issues || []).map((issue: any) => ({
+          type: 'vocab' as const,
+          example: issue.text,
+          correction: issue.suggestion,
+        }))
+
+        comprehensiveCorrections = [...grammarCorrections, ...vocabCorrections]
+        complexityAnalysis = analysis.complexity_analysis
+
+        console.log('[Summarize] Comprehensive analysis found:', {
+          grammar_errors: grammarCorrections.length,
+          vocab_issues: vocabCorrections.length,
+          complexity: complexityAnalysis,
+        })
+      } else {
+        console.warn('[Summarize] Analyze-transcript failed, using tutor corrections')
+      }
+    } catch (error) {
+      console.error('[Summarize] Failed to analyze transcript:', error)
+      console.warn('[Summarize] Falling back to tutor corrections')
+    }
+
+    // Calculate comprehensive metrics using thorough analysis
     const metrics = calculateMetrics({
       transcript: input.transcript || [],
-      corrections: input.corrections,
+      corrections: comprehensiveCorrections, // Use comprehensive analysis instead of sparse tutor corrections
       usedTargets: input.usedTargets,
       missedTargets: input.missedTargets,
       sessionDurationMs,
       userCefrLevel,
     })
 
-    // Update session summary with transcript and basic metrics
+    // Update session summary with transcript and comprehensive analysis
     await supabase
       .from('sessions')
       .update({
@@ -72,8 +119,9 @@ export async function POST(req: NextRequest) {
         summary: {
           usedTargets: input.usedTargets,
           missedTargets: input.missedTargets,
-          corrections: input.corrections,
+          corrections: comprehensiveCorrections, // Store comprehensive analysis, not sparse tutor corrections
           transcript: input.transcript || [],
+          complexity: complexityAnalysis, // Store complexity analysis for future reference
         },
       })
       .eq('id', input.sessionId)
@@ -102,8 +150,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Upsert errors
-    for (const correction of input.corrections) {
+    // Upsert errors from comprehensive analysis (only save meaningful corrections where example differs from correction)
+    for (const correction of comprehensiveCorrections) {
+      // Skip if example and correction are the same (not a real correction)
+      if (correction.example.trim() === correction.correction.trim()) {
+        console.log('[Summarize] Skipping non-correction:', correction.example)
+        continue
+      }
+
       const { data: existing } = await supabase
         .from('errors')
         .select('*')

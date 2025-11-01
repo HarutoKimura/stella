@@ -13,6 +13,7 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.4",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "next": "^15.0.0",
     "ogl": "^1.0.11",
     "openai": "^4.73.1",

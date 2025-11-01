@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabaseClient'
 import SpotlightCard from '@/components/SpotlightCard'
 import { DbProgressMetric, DbWeeklyProgress, DbCefrTrajectory } from '@/lib/schema'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
 interface DashboardStats {
   currentEGI: number
@@ -242,10 +243,10 @@ export function StatisticalDashboard() {
         </div>
       </SpotlightCard>
 
-      {/* Progress Trend */}
+      {/* Progress Trend - Multi-line Chart */}
       <SpotlightCard className="!p-6">
-        <h3 className="text-xl font-bold text-white mb-4">📈 Progress Trend</h3>
-        <ProgressTrendChart metrics={stats.recentMetrics.slice(0, 7).reverse()} />
+        <h3 className="text-xl font-bold text-white mb-4">📈 Skill Progression Over Time</h3>
+        <MultiLineProgressChart metrics={stats.recentMetrics.slice(0, 10).reverse()} />
       </SpotlightCard>
     </div>
   )
@@ -374,39 +375,99 @@ function CEFRDistributionChart({ distribution }: { distribution: Record<string, 
   )
 }
 
-function ProgressTrendChart({ metrics }: { metrics: DbProgressMetric[] }) {
+function MultiLineProgressChart({ metrics }: { metrics: DbProgressMetric[] }) {
   if (metrics.length === 0) {
     return <p className="text-gray-400 text-center">Complete more sessions to see trends</p>
   }
 
-  const maxScore = 100
-  const chartHeight = 200
+  // Prepare data for recharts
+  const chartData = metrics.map((metric, index) => ({
+    session: `#${index + 1}`,
+    fluency: metric.fluency_score,
+    grammar: metric.grammar_score,
+    vocabulary: metric.vocabulary_score,
+    comprehension: metric.comprehension_score,
+    confidence: metric.confidence_score,
+  }))
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between gap-2" style={{ height: chartHeight }}>
-        {metrics.map((metric, i) => {
-          const barHeight = (metric.egi_score / maxScore) * chartHeight
-
-          return (
-            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-              <div
-                className="w-full bg-gradient-to-t from-blue-500 to-purple-500 rounded-t-lg transition-all hover:opacity-80 relative group"
-                style={{ height: `${barHeight}px` }}
-              >
-                <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  EGI: {metric.egi_score}
-                </div>
-              </div>
-              <div className="text-xs text-gray-500">#{metrics.length - i}</div>
-            </div>
-          )
-        })}
-      </div>
-      <div className="flex justify-between text-xs text-gray-500">
-        <span>Oldest</span>
-        <span>Most Recent</span>
-      </div>
+      <ResponsiveContainer width="100%" height={350}>
+        <LineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+          <XAxis
+            dataKey="session"
+            stroke="#888"
+            style={{ fontSize: '12px' }}
+          />
+          <YAxis
+            stroke="#888"
+            domain={[0, 100]}
+            ticks={[0, 25, 50, 75, 100]}
+            style={{ fontSize: '12px' }}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1a1a2e',
+              border: '1px solid #444',
+              borderRadius: '8px',
+            }}
+            labelStyle={{ color: '#fff' }}
+          />
+          <Legend
+            wrapperStyle={{ paddingTop: '20px' }}
+            iconType="line"
+          />
+          <Line
+            type="monotone"
+            dataKey="fluency"
+            name="🚀 Fluency"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={{ fill: '#3b82f6', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="grammar"
+            name="✅ Grammar"
+            stroke="#10b981"
+            strokeWidth={2}
+            dot={{ fill: '#10b981', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="vocabulary"
+            name="📚 Vocabulary"
+            stroke="#a855f7"
+            strokeWidth={2}
+            dot={{ fill: '#a855f7', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="comprehension"
+            name="🧠 Comprehension"
+            stroke="#06b6d4"
+            strokeWidth={2}
+            dot={{ fill: '#06b6d4', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="confidence"
+            name="💪 Confidence"
+            stroke="#eab308"
+            strokeWidth={2}
+            dot={{ fill: '#eab308', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      <p className="text-gray-500 text-xs text-center mt-2">
+        Track your progress across all skill areas • Latest {metrics.length} sessions
+      </p>
     </div>
   )
 }

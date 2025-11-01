@@ -118,11 +118,11 @@ export function LearningInsights() {
       </div>
 
       {/* Common Mistakes */}
-      {insights.commonErrors.length > 0 && (
-        <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-yellow-500/30">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <span>⚠️</span> Common Mistakes to Watch
-          </h3>
+      <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-yellow-500/30">
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <span>⚠️</span> Common Mistakes to Watch
+        </h3>
+        {insights.commonErrors.length > 0 ? (
           <div className="space-y-3">
             {insights.commonErrors.map((error, idx) => (
               <div key={idx} className="bg-white/5 rounded-lg p-4">
@@ -143,8 +143,18 @@ export function LearningInsights() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-4xl mb-3">✨</div>
+            <p className="text-gray-300">
+              No corrections yet! The AI tutor will track your mistakes as you practice.
+            </p>
+            <p className="text-gray-400 text-sm mt-2">
+              Complete more sessions to see patterns in your errors.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Encouragement */}
       <div className="bg-gradient-to-br from-green-500/20 to-green-700/20 backdrop-blur-md rounded-lg p-6 border border-green-500/30 text-center">
