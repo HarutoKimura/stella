@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabaseClient'
+import SpotlightCard from '@/components/SpotlightCard'
+import { useRouter } from 'next/navigation'
 
 type Session = {
   id: string
@@ -10,15 +12,21 @@ type Session = {
   student_turns: number
   tutor_turns: number
   speaking_ms: number
+  summary: {
+    corrections?: any[]
+    usedTargets?: string[]
+  }
 }
 
 export function SessionHistory() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     loadSessions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadSessions = async () => {
@@ -34,12 +42,13 @@ export function SessionHistory() {
 
       if (!profile) return
 
+      // Load all completed sessions (only those with ended_at)
       const { data } = await supabase
         .from('sessions')
         .select('*')
         .eq('user_id', profile.id)
+        .not('ended_at', 'is', null)
         .order('started_at', { ascending: false })
-        .limit(20)
 
       setSessions(data || [])
     } catch (error) {
@@ -49,75 +58,85 @@ export function SessionHistory() {
     }
   }
 
-  const formatDuration = (ms: number) => {
-    const minutes = Math.floor(ms / 60000)
-    const seconds = Math.floor((ms % 60000) / 1000)
-    return `${minutes}m ${seconds}s`
-  }
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   if (loading) {
-    return <div className="text-white text-center py-8">Loading sessions...</div>
+    return (
+      <SpotlightCard className="!p-8">
+        <p className="text-gray-400 text-center">Loading your sessions...</p>
+      </SpotlightCard>
+    )
   }
 
   if (sessions.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">📜</div>
-        <h3 className="text-2xl font-bold text-white mb-2">No Sessions Yet</h3>
-        <p className="text-gray-400">Start practicing to see your session history here</p>
-      </div>
+      <SpotlightCard className="!p-8">
+        <div className="text-center">
+          <div className="text-5xl mb-4">🎯</div>
+          <p className="text-gray-400 text-lg mb-2">No sessions yet</p>
+          <p className="text-gray-500 text-sm">
+            Start your first practice session to see your progress here!
+          </p>
+        </div>
+      </SpotlightCard>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold text-white mb-4">Session History</h2>
+    <div className="space-y-3">
+      {sessions.map((session) => {
+        const date = new Date(session.started_at)
+        const duration = session.ended_at
+          ? Math.round((new Date(session.ended_at).getTime() - date.getTime()) / 1000 / 60)
+          : 0
+        const corrections = session.summary?.corrections?.length || 0
+        const usedTargets = session.summary?.usedTargets?.length || 0
 
-      {sessions.map((session) => (
-        <div
-          key={session.id}
-          className="bg-white/10 backdrop-blur-md rounded-lg p-4 border border-blue-500/30"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-white font-semibold">
-              {formatDate(session.started_at)}
-            </div>
-            <div className={`px-3 py-1 rounded-full text-sm ${
-              session.ended_at ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
-            }`}>
-              {session.ended_at ? 'Completed' : 'In Progress'}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-blue-400">{session.student_turns}</div>
-              <div className="text-sm text-gray-400">Your Turns</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-purple-400">{session.tutor_turns}</div>
-              <div className="text-sm text-gray-400">Tutor Turns</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-green-400">
-                {formatDuration(session.speaking_ms)}
+        return (
+          <SpotlightCard
+            key={session.id}
+            className="!p-4 cursor-pointer hover:scale-[1.02] transition-transform"
+            onClick={() => router.push(`/session-review/${session.id}`)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-3xl">📝</div>
+                <div>
+                  <h3 className="text-white font-semibold">
+                    {date.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    {date.toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })} • {duration} min
+                  </p>
+                </div>
               </div>
-              <div className="text-sm text-gray-400">Duration</div>
+
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <p className="text-white font-bold">{session.student_turns + session.tutor_turns}</p>
+                  <p className="text-gray-400 text-xs">Turns</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-green-400 font-bold">{usedTargets}</p>
+                  <p className="text-gray-400 text-xs">Phrases</p>
+                </div>
+                <div className="text-center">
+                  <p className={`font-bold ${corrections > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                    {corrections}
+                  </p>
+                  <p className="text-gray-400 text-xs">Errors</p>
+                </div>
+                <div className="text-blue-400 text-xl">→</div>
+              </div>
             </div>
-          </div>
-        </div>
-      ))}
+          </SpotlightCard>
+        )
+      })}
     </div>
   )
 }
