@@ -30,7 +30,12 @@ export function StatisticalDashboard() {
   const [loading, setLoading] = useState(true)
   const [showGrammarErrors, setShowGrammarErrors] = useState(false)
   const [showVocabErrors, setShowVocabErrors] = useState(false)
+  const [showComprehensionDetails, setShowComprehensionDetails] = useState(false)
+  const [showFluencyDetails, setShowFluencyDetails] = useState(false)
   const [latestCorrections, setLatestCorrections] = useState<Correction[]>([])
+  const [latestTargets, setLatestTargets] = useState<{ used: string[]; missed: string[] }>({ used: [], missed: [] })
+  const [latestFluency, setLatestFluency] = useState<any>(null)
+  const [userCefrLevel, setUserCefrLevel] = useState<string>('B1')
   const supabase = createClient()
 
   useEffect(() => {
@@ -45,11 +50,13 @@ export function StatisticalDashboard() {
 
       const { data: profile } = await supabase
         .from('users')
-        .select('id')
+        .select('id, cefr_level')
         .eq('auth_user_id', authUser.id)
         .single()
 
       if (!profile) return
+
+      setUserCefrLevel(profile.cefr_level || 'B1')
 
       // Get latest progress metrics (last 10 sessions)
       const { data: metrics } = await supabase
@@ -76,10 +83,10 @@ export function StatisticalDashboard() {
         .order('created_at', { ascending: false })
         .limit(5)
 
-      // Get latest session's corrections (for error details)
+      // Get latest session's corrections and targets (for error details)
       const { data: latestSession } = await supabase
         .from('sessions')
-        .select('summary')
+        .select('id, summary')
         .eq('user_id', profile.id)
         .not('ended_at', 'is', null)
         .order('ended_at', { ascending: false })
@@ -88,6 +95,21 @@ export function StatisticalDashboard() {
 
       const corrections: Correction[] = latestSession?.summary?.corrections || []
       setLatestCorrections(corrections)
+
+      const usedTargets = latestSession?.summary?.usedTargets || []
+      const missedTargets = latestSession?.summary?.missedTargets || []
+      setLatestTargets({ used: usedTargets, missed: missedTargets })
+
+      // Get latest fluency snapshot
+      if (latestSession) {
+        const { data: fluencySnapshot } = await supabase
+          .from('fluency_snapshots')
+          .select('*')
+          .eq('session_id', latestSession.id)
+          .single()
+
+        setLatestFluency(fluencySnapshot)
+      }
 
       // Calculate current EGI (average of last 3 sessions)
       const recentEGI = metrics?.slice(0, 3).map(m => m.egi_score) || []
@@ -171,6 +193,8 @@ export function StatisticalDashboard() {
           score={latestMetric.fluency_score}
           color="blue"
           details={`${stats.recentMetrics[0]?.total_words || 0} words • ${Math.round(stats.recentMetrics[0]?.lexical_diversity * 100 || 0)}% diversity`}
+          onClick={() => setShowFluencyDetails(!showFluencyDetails)}
+          clickable={latestFluency !== null}
         />
         <ScoreCard
           icon="✅"
@@ -196,6 +220,8 @@ export function StatisticalDashboard() {
           score={latestMetric.comprehension_score}
           color="cyan"
           details="Target usage"
+          onClick={() => setShowComprehensionDetails(!showComprehensionDetails)}
+          clickable={latestTargets.used.length > 0 || latestTargets.missed.length > 0}
         />
         <ScoreCard
           icon="💪"
@@ -319,6 +345,168 @@ export function StatisticalDashboard() {
                 )}
               </div>
             ))}
+          </div>
+        </SpotlightCard>
+      )}
+
+      {/* Comprehension Details (expandable) */}
+      {showComprehensionDetails && (latestTargets.used.length > 0 || latestTargets.missed.length > 0) && (
+        <SpotlightCard className="!p-6" spotlightColor="rgba(6, 182, 212, 0.2)">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>🎯</span>
+              <span>Target Phrase Usage</span>
+              <span className="text-sm text-gray-400 font-normal">
+                (from latest session)
+              </span>
+            </h3>
+            <button
+              onClick={() => setShowComprehensionDetails(false)}
+              className="text-gray-400 hover:text-white text-sm"
+            >
+              ✕ Close
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {/* Used Targets */}
+            {latestTargets.used.length > 0 && (
+              <div>
+                <h4 className="text-green-400 font-semibold mb-3 flex items-center gap-2">
+                  <span>✅</span>
+                  <span>Successfully Used ({latestTargets.used.length})</span>
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {latestTargets.used.map((phrase, idx) => (
+                    <div key={idx} className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                      <p className="text-white font-medium">&ldquo;{phrase}&rdquo;</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Missed Targets */}
+            {latestTargets.missed.length > 0 && (
+              <div>
+                <h4 className="text-orange-400 font-semibold mb-3 flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>Missed Opportunities ({latestTargets.missed.length})</span>
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {latestTargets.missed.map((phrase, idx) => (
+                    <div key={idx} className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+                      <p className="text-white font-medium">&ldquo;{phrase}&rdquo;</p>
+                      <p className="text-orange-300 text-xs mt-1">Try using this next time!</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </SpotlightCard>
+      )}
+
+      {/* Fluency Details (expandable) */}
+      {showFluencyDetails && latestFluency && (
+        <SpotlightCard className="!p-6" spotlightColor="rgba(59, 130, 246, 0.2)">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>🚀</span>
+              <span>Fluency Breakdown</span>
+              <span className="text-sm text-gray-400 font-normal">
+                (from latest session)
+              </span>
+            </h3>
+            <button
+              onClick={() => setShowFluencyDetails(false)}
+              className="text-gray-400 hover:text-white text-sm"
+            >
+              ✕ Close
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Speaking Speed */}
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">⚡</span>
+                <h4 className="text-blue-400 font-semibold">Speaking Speed</h4>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Your WPM:</span>
+                  <span className="text-white font-bold text-xl">{Math.round(latestFluency.wpm)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Target for {userCefrLevel}:</span>
+                  <span className="text-blue-300 font-semibold">{getTargetWpmForLevel(userCefrLevel)}</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (latestFluency.wpm / getTargetWpmForLevel(userCefrLevel)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Filler Words */}
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">💬</span>
+                <h4 className="text-yellow-400 font-semibold">Filler Words</h4>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Filler rate:</span>
+                  <span className="text-white font-bold text-xl">{latestFluency.filler_rate.toFixed(1)}%</span>
+                </div>
+                <p className="text-gray-400 text-sm mt-2">
+                  {latestFluency.filler_rate < 2 ? '✨ Excellent! Very few fillers.' :
+                   latestFluency.filler_rate < 5 ? '👍 Good! Keep working on it.' :
+                   '💡 Try to reduce "um", "uh", "like", etc.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Pause Length */}
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">⏸️</span>
+                <h4 className="text-purple-400 font-semibold">Average Pause</h4>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Pause time:</span>
+                  <span className="text-white font-bold text-xl">{(latestFluency.avg_pause_ms / 1000).toFixed(1)}s</span>
+                </div>
+                <p className="text-gray-400 text-sm mt-2">
+                  {latestFluency.avg_pause_ms < 2000 ? '⚡ Quick responses!' :
+                   latestFluency.avg_pause_ms < 4000 ? '✓ Natural pace.' :
+                   '💭 Take your time - it\'s okay!'}
+                </p>
+              </div>
+            </div>
+
+            {/* Utterance Length */}
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">📏</span>
+                <h4 className="text-green-400 font-semibold">Sentence Length</h4>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Avg words/turn:</span>
+                  <span className="text-white font-bold text-xl">{latestFluency.mean_utterance_length.toFixed(1)}</span>
+                </div>
+                <p className="text-gray-400 text-sm mt-2">
+                  {latestFluency.mean_utterance_length > 15 ? '🎉 Great detail in responses!' :
+                   latestFluency.mean_utterance_length > 8 ? '👍 Good sentence complexity.' :
+                   '💡 Try to elaborate more!'}
+                </p>
+              </div>
+            </div>
           </div>
         </SpotlightCard>
       )}
@@ -632,4 +820,11 @@ function getWeekStartDate(date: Date): string {
   d.setDate(diff)
   d.setHours(0, 0, 0, 0)
   return d.toISOString().split('T')[0]
+}
+
+function getTargetWpmForLevel(level: string): number {
+  const targets: Record<string, number> = {
+    A1: 60, A2: 80, B1: 100, B2: 120, C1: 140, C2: 150
+  }
+  return targets[level] || 100
 }
