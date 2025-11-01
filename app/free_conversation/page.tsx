@@ -359,13 +359,13 @@ export default function FreeConversationPage() {
 
           {/* Centered Orb */}
           <div className="flex flex-col items-center justify-center mt-12 relative">
-            {/* Orb Background */}
+            {/* Orb Background - distorted during loading */}
             <div style={{ width: '100%', maxWidth: '600px', height: '600px', position: 'relative' }}>
               <Orb
-                hue={0}
-                hoverIntensity={0}
-                rotateOnHover={false}
-                forceHoverState={false}
+                hue={200}
+                hoverIntensity={1.5}
+                rotateOnHover={true}
+                forceHoverState={status === 'connecting' || status === 'idle'}
               />
             </div>
 

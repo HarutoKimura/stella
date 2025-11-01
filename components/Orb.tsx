@@ -18,6 +18,12 @@ export default function Orb({
   forceHoverState = false,
 }: OrbProps) {
   const ctnDom = useRef<HTMLDivElement>(null)
+  const forceHoverRef = useRef(forceHoverState)
+
+  // Update ref when prop changes
+  useEffect(() => {
+    forceHoverRef.current = forceHoverState
+  }, [forceHoverState])
 
   const vert = /* glsl */ `
     precision highp float;
@@ -261,7 +267,7 @@ export default function Orb({
       program.uniforms.hue.value = hue
       program.uniforms.hoverIntensity.value = hoverIntensity
 
-      const effectiveHover = forceHoverState ? 1 : targetHover
+      const effectiveHover = forceHoverRef.current ? 1 : targetHover
       program.uniforms.hover.value += (effectiveHover - program.uniforms.hover.value) * 0.1
 
       if (rotateOnHover && effectiveHover > 0.5) {
@@ -282,7 +288,7 @@ export default function Orb({
       gl.getExtension('WEBGL_lose_context')?.loseContext()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hue, hoverIntensity, rotateOnHover, forceHoverState])
+  }, [hue, hoverIntensity, rotateOnHover])
 
   return <div ref={ctnDom} className="orb-container" />
 }
