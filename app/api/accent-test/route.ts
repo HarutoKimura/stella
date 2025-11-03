@@ -56,6 +56,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
+    // CONTEXT MEMORY: Query recent feedback history (last 30 days)
+    const { data: historicalFeedback } = await supabase
+      .from('feedback_tips')
+      .select('category, original_sentence, corrected_sentence, tip, severity, created_at')
+      .eq('user_id', userProfile.id)
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    console.log('[Accent Test API] Historical feedback found:', historicalFeedback?.length || 0)
+
+    // Aggregate recurring patterns
+    const recurringIssues = historicalFeedback?.reduce((acc: any, tip: any) => {
+      const key = tip.category
+      if (!acc[key]) {
+        acc[key] = { count: 0, examples: [] }
+      }
+      acc[key].count++
+      if (acc[key].examples.length < 2) {
+        acc[key].examples.push(tip.tip)
+      }
+      return acc
+    }, {}) || {}
+
     // Parse form data
     const formData = await req.formData()
     const audio = formData.get('audio')
@@ -210,8 +234,24 @@ export async function POST(req: NextRequest) {
     const recognizedText = result.text
     const words = details.NBest?.[0]?.Words || []
 
+    // Extract word-level pronunciation issues (words with score < 60)
+    const pronunciationIssues = words
+      .filter((word: any) => {
+        const pronScore = word.PronunciationAssessment?.AccuracyScore || 100
+        return pronScore < 60
+      })
+      .map((word: any) => ({
+        word: word.Word,
+        score: word.PronunciationAssessment?.AccuracyScore || 0,
+        phonemes: word.Phonemes?.map((p: any) => ({
+          phoneme: p.Phoneme,
+          score: p.PronunciationAssessment?.AccuracyScore || 0
+        })) || []
+      }))
+
     console.log('[Accent Test API] Azure scores:', azureScores)
     console.log('[Accent Test API] Recognized text:', recognizedText)
+    console.log('[Accent Test API] Pronunciation issues found:', pronunciationIssues.length)
 
     // STEP 2: OpenAI Analysis for EGI Scores
     console.log('[Accent Test API] Starting OpenAI analysis...')
@@ -231,6 +271,23 @@ export async function POST(req: NextRequest) {
 **Word Count:** ${words.length}
 
 **Current CEFR Level:** ${userProfile.cefr_level}
+
+**Word-Level Pronunciation Issues (Azure detected ${pronunciationIssues.length} mispronounced words):**
+${pronunciationIssues.length > 0 ? pronunciationIssues.map((issue: any) =>
+  `- "${issue.word}" (score: ${issue.score}/100)${issue.phonemes.length > 0 ?
+    `\n  Problematic phonemes: ${issue.phonemes.filter((p: any) => p.score < 60).map((p: any) => `${p.phoneme} (${p.score})`).join(', ')}` : ''}`
+).join('\n') : 'None - good pronunciation overall'}
+
+**Historical Patterns (Context Memory - Last 30 days):**
+${Object.keys(recurringIssues).length > 0 ?
+  Object.entries(recurringIssues).map(([category, data]: [string, any]) =>
+    `- ${category.toUpperCase()}: ${data.count} issue(s) detected previously\n  Past tips: ${data.examples.join('; ')}`
+  ).join('\n') :
+  'No previous feedback history available (first test or new user)'}
+
+${historicalFeedback && historicalFeedback.length > 0 ?
+  '\n**Important**: If you notice similar patterns repeating, mention: "Last time, you had trouble with [issue]. Let\'s work on this again."' :
+  ''}
 
 **Task Part 1: Quantitative Assessment**
 1. Evaluate the grammar quality (sentence structure, tense usage, articles, prepositions)
@@ -252,7 +309,28 @@ For each issue:
 - Provide the corrected, natural-sounding version
 - Give ONE specific, actionable tip (not generic advice)
 - Categorize: grammar, vocabulary, pronunciation, fluency, idiom, or structure
-- Rate severity: low, medium, or high
+- Rate severity using these pedagogical rules:
+
+**Severity Rating (Pedagogically Consistent):**
+- **HIGH** (affects intelligibility or core grammar):
+  * Wrong verb tense (past/present confusion, e.g., "I go yesterday")
+  * Missing or wrong articles (the/a/an, e.g., "I am student")
+  * Subject-verb agreement errors (e.g., "He go to school")
+  * Wrong prepositions that change meaning (e.g., "interested of" → "interested in")
+  * Plural/singular confusion affecting meaning
+
+- **MEDIUM** (stylistic, but affects naturalness):
+  * Awkward word choice where meaning is clear but sounds non-native
+  * Unnatural phrasing (grammatically correct but not idiomatic)
+  * Missing collocations or fixed expressions
+  * Word order issues that don't obscure meaning
+  * Redundant or overly formal expressions
+
+- **LOW** (minor issues, doesn't impede communication):
+  * Slight pronunciation variations that are still understandable
+  * Minor filler word overuse (um, uh, like)
+  * Small pause or fluency issues
+  * Advanced vocabulary mistakes (using B1 word instead of C1 equivalent)
 
 Focus on:
 - Grammar mistakes that sound unnatural to native speakers
@@ -260,6 +338,11 @@ Focus on:
 - Sentence structures that could be simplified or improved
 - Common non-native patterns (e.g., "go to abroad" → "go abroad")
 - Missing articles, wrong prepositions, awkward phrasing
+- **Pronunciation issues with phoneme guidance** (NEW!):
+  * If Azure detected mispronounced words (listed above), include pronunciation feedback
+  * Use IPA phonetics for clear guidance (e.g., /ˈɪn.trə.stɪŋ/ not /ˈɪntrestɪŋ/)
+  * Link pronunciation to common L1 transfer errors (e.g., Japanese speakers: R/L confusion, TH sounds)
+  * Make it actionable: "Focus on the /ð/ sound in 'this' - place tongue between teeth"
 
 Return ONLY a valid JSON object with this exact structure:
 {

@@ -30,6 +30,13 @@ type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | '
 type RealtimeConfig = {
   userId: string
   sessionId: string
+  feedbackContext?: Array<{
+    category: string
+    original_sentence: string
+    corrected_sentence: string
+    tip: string
+    severity: string
+  }>
 }
 
 export function useRealtime() {

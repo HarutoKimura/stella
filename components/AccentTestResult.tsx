@@ -354,13 +354,36 @@ export function AccentTestResult({ results, onRetake }: AccentTestResultProps) {
         </div>
       )}
 
+      {/* Progress Continuity: Practice Now CTA */}
+      {results.semantic_feedback && results.semantic_feedback.length > 0 && (
+        <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 backdrop-blur-md rounded-2xl p-8 border border-green-400/30 mb-6 text-center">
+          <div className="text-5xl mb-4">🚀</div>
+          <h3 className="text-2xl font-bold text-white mb-3">
+            Ready to Apply What You Learned?
+          </h3>
+          <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+            The best way to master these corrections is to practice them immediately.
+            Start a conversation with our AI tutor and get real-time feedback as you speak.
+          </p>
+          <button
+            onClick={() => router.push(`/free_conversation?from_test=${results.test_id}`)}
+            className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-bold py-4 px-10 rounded-full transition-all transform hover:scale-105 shadow-lg"
+          >
+            Practice These Corrections Now →
+          </button>
+          <p className="text-gray-400 text-sm mt-4">
+            Your corrections will be loaded automatically
+          </p>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
         <button
           onClick={() => router.push('/free_conversation')}
           className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-full transition-colors"
         >
-          Start Personalized Lesson
+          Start General Lesson
         </button>
         <button
           onClick={onRetake}

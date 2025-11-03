@@ -23,8 +23,15 @@ function buildSystemPrompt(params: {
   correctionMode: CorrectionMode
   feedbackStyle: 'explicit' | 'recast' | 'elicitation'
   activeTargets: string[]
+  feedbackContext?: Array<{
+    category: string
+    original_sentence: string
+    corrected_sentence: string
+    tip: string
+    severity: string
+  }>
 }): string {
-  const { cefrLevel, correctionMode, feedbackStyle, activeTargets } = params
+  const { cefrLevel, correctionMode, feedbackStyle, activeTargets, feedbackContext } = params
 
   // Correction timing instructions
   const correctionInstructions = {
@@ -72,6 +79,24 @@ You: "You go... what? Think about the verb pattern."
 Force the student to notice and fix their own errors. Only provide the answer if they're stuck.`,
   }
 
+  // Build accent test context section if available
+  const accentTestContext = feedbackContext && feedbackContext.length > 0
+    ? `\n\n📊 ACCENT TEST CONTEXT (From Recent Assessment):
+The student just took an accent test. Here are specific issues to work on:
+
+${feedbackContext.map((fb, idx) => `${idx + 1}. [${fb.severity.toUpperCase()} PRIORITY - ${fb.category}]
+   ❌ They said: "${fb.original_sentence}"
+   ✅ Should be: "${fb.corrected_sentence}"
+   💡 Tip: ${fb.tip}
+`).join('\n')}
+
+IMPORTANT: When you notice the student making these mistakes again:
+- Gently point it out: "I notice you said '${feedbackContext[0].original_sentence}'. Remember from your test? Try '${feedbackContext[0].corrected_sentence}' instead."
+- If they ask about their weaknesses, refer to these specific patterns
+- Prioritize HIGH severity issues over LOW severity ones
+- Track whether they're improving on these specific corrections`
+    : ''
+
   return `You are a friendly English tutor helping Japanese learners practice everyday conversation (CEFR: ${cefrLevel}).
 
 CONVERSATION GOALS:
@@ -89,6 +114,7 @@ YOUR TEACHING APPROACH:
 ${correctionInstructions[correctionMode]}
 
 ${feedbackInstructions[feedbackStyle]}
+${accentTestContext}
 
 STYLE:
 - Be concise (1-2 sentences per turn)
@@ -115,6 +141,16 @@ export async function POST(req: NextRequest) {
 
     if (authError || !authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Parse request body to get feedbackContext
+    const body = await req.json()
+    const feedbackContext = body.feedbackContext
+
+    console.log('[Realtime Token] Request body keys:', Object.keys(body))
+    console.log('[Realtime Token] Feedback context:', feedbackContext ? `${feedbackContext.length} tips` : 'none')
+    if (feedbackContext && feedbackContext.length > 0) {
+      console.log('[Realtime Token] Feedback details:', JSON.stringify(feedbackContext, null, 2))
     }
 
     // Get user profile for system prompt
@@ -144,13 +180,17 @@ export async function POST(req: NextRequest) {
     const correctionMode: CorrectionMode = (profile.correction_mode as CorrectionMode) || 'balanced'
     const feedbackStyle = getFeedbackStyle(profile.cefr_level)
 
-    // Build system prompt dynamically
+    // Build system prompt dynamically with feedback context
     const systemPrompt = buildSystemPrompt({
       cefrLevel: profile.cefr_level,
       correctionMode,
       feedbackStyle,
       activeTargets,
+      feedbackContext: feedbackContext || undefined,
     })
+
+    console.log('[Realtime Token] System prompt length:', systemPrompt.length)
+    console.log('[Realtime Token] Prompt includes accent test context:', systemPrompt.includes('ACCENT TEST CONTEXT'))
 
     // Request ephemeral token from OpenAI
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {

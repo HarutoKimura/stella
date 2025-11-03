@@ -10,15 +10,15 @@ import { useSessionStore } from '@/lib/sessionStore'
 import { useBubbleStore } from '@/lib/bubbleStore'
 import { useRealtime } from '@/lib/useRealtime'
 import { parseTextIntent, executeIntent } from '@/lib/intentRouter'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabaseClient'
 import { FloatingTopicContainer } from '@/components/FloatingTopicContainer'
 import { TopicCardData } from '@/components/FloatingTopicCard'
 import { detectConversationStruggle, generateFloatingTopicCards } from '@/lib/topicSuggestions'
 import { assessPronunciation, usePronunciationStore } from '@/lib/pronunciationStore'
 
-export default function FreeConversationPage() {
+function FreeConversationContent() {
   const [input, setInput] = useState('')
   const sessionId = useSessionStore((state) => state.sessionId)
   const user = useSessionStore((state) => state.user)
@@ -29,28 +29,72 @@ export default function FreeConversationPage() {
   const showTutorTranscript = useBubbleStore((state) => state.showTutorTranscript)
   const toggleTutorTranscript = useBubbleStore((state) => state.toggleTutorTranscript)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   // Floating topic cards state
   const [floatingCards, setFloatingCards] = useState<TopicCardData[]>([])
   const [hasShownCards, setHasShownCards] = useState(false)
 
+  // Context from accent test (if redirected from test results)
+  const [accentTestFeedback, setAccentTestFeedback] = useState<any[] | null>(null)
+
   // Realtime connection
   const { status, error, micActive, isTutorSpeaking, start, sendText, stop } = useRealtime()
 
+  // Fetch feedback from accent test if coming from test results
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false)
+
   useEffect(() => {
+    const fromTestId = searchParams.get('from_test')
+
+    const fetchFeedback = async () => {
+      if (!fromTestId) {
+        // No test context, mark as loaded and continue
+        setFeedbackLoaded(true)
+        return
+      }
+
+      console.log('[Accent Test Context] Loading feedback for test:', fromTestId)
+      const { data: feedback } = await supabase
+        .from('feedback_tips')
+        .select('category, original_sentence, corrected_sentence, tip, severity')
+        .eq('accent_test_id', fromTestId)
+        .order('severity', { ascending: false }) // High severity first
+
+      if (feedback && feedback.length > 0) {
+        console.log('[Accent Test Context] Loaded', feedback.length, 'feedback tips')
+        setAccentTestFeedback(feedback)
+      } else {
+        console.log('[Accent Test Context] No feedback found for test')
+      }
+
+      setFeedbackLoaded(true)
+    }
+
+    fetchFeedback()
+  }, [searchParams, supabase])
+
+  useEffect(() => {
+    // Wait for feedback to load before starting session
+    if (!feedbackLoaded) {
+      console.log('[Init] Waiting for feedback to load...')
+      return
+    }
+
     // Prevent double initialization in React strict mode
     let initialized = false
 
     const init = async () => {
       if (initialized) return
       initialized = true
+      console.log('[Init] Starting session with feedback context:', accentTestFeedback ? `${accentTestFeedback.length} tips` : 'none')
       await initSession()
     }
 
     init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [feedbackLoaded])
 
   // Monitor conversation for struggle patterns and show cards automatically
   useEffect(() => {
@@ -161,10 +205,11 @@ export default function FreeConversationPage() {
         microPack.targets.map((t: any) => t.phrase)
       )
 
-      // Start realtime connection with gentle mode
+      // Start realtime connection with gentle mode and accent test feedback if available
       await start({
         userId,
         sessionId: session.id,
+        feedbackContext: accentTestFeedback || undefined,
       })
     } catch (error) {
       console.error('Failed to start session:', error)
@@ -445,5 +490,19 @@ export default function FreeConversationPage() {
         </div>
       </div>
     </OrbBG>
+  )
+}
+
+export default function FreeConversationPage() {
+  return (
+    <Suspense fallback={
+      <OrbBG>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+      </OrbBG>
+    }>
+      <FreeConversationContent />
+    </Suspense>
   )
 }
