@@ -24,11 +24,18 @@ export type TargetStatus = {
   attempts: number
 }
 
+export type Correction = {
+  type: 'grammar' | 'vocab' | 'pron'
+  example: string
+  correction: string
+}
+
 type SessionStore = {
   user: UserProfile | null
   sessionId: string | null
   transcript: TranscriptTurn[]
   activeTargets: TargetStatus[]
+  corrections: Correction[]
   stats: SessionStats
   isVoiceMode: boolean
   currentIntent: string | null
@@ -38,6 +45,7 @@ type SessionStore = {
   startSession: (sessionId: string, targets: string[]) => void
   endSession: () => void
   addTurn: (role: 'user' | 'tutor', text: string) => void
+  addCorrection: (correction: Correction) => void
   markTargetUsed: (phrase: string) => void
   updateStats: (updates: Partial<SessionStats>) => void
   setVoiceMode: (enabled: boolean) => void
@@ -50,6 +58,7 @@ const initialState = {
   sessionId: null,
   transcript: [],
   activeTargets: [],
+  corrections: [],
   stats: {
     studentTurns: 0,
     tutorTurns: 0,
@@ -85,6 +94,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
       sessionId: null,
       transcript: [],
       activeTargets: [],
+      corrections: [],
       stats: {
         studentTurns: 0,
         tutorTurns: 0,
@@ -103,6 +113,11 @@ export const useSessionStore = create<SessionStore>((set) => ({
         studentTurns: role === 'user' ? state.stats.studentTurns + 1 : state.stats.studentTurns,
         tutorTurns: role === 'tutor' ? state.stats.tutorTurns + 1 : state.stats.tutorTurns,
       },
+    })),
+
+  addCorrection: (correction) =>
+    set((state) => ({
+      corrections: [...state.corrections, correction],
     })),
 
   markTargetUsed: (phrase) =>

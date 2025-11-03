@@ -8,6 +8,7 @@ create table if not exists public.users (
   display_name text,
   native_language text default 'ja',
   cefr_level text check (cefr_level in ('A1','A2','B1','B2','C1','C2')) default 'B1',
+  correction_mode text check (correction_mode in ('immediate','balanced','gentle')) default 'balanced',
   created_at timestamptz default now()
 );
 
@@ -54,6 +55,17 @@ create table if not exists public.fluency_snapshots (
   wpm numeric,
   filler_rate numeric,
   avg_pause_ms int,
+  mean_utterance_length numeric,
+  unique_words_count int,
+  total_words_count int,
+  grammar_accuracy numeric,
+  pronunciation_score numeric,
+  accuracy_score numeric,
+  fluency_score numeric,
+  prosody_score numeric,
+  completeness_score numeric,
+  turn_ratio numeric,
+  confidence_score numeric,
   created_at timestamptz default now()
 );
 

@@ -1,5 +1,103 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
+import { CorrectionMode } from '@/lib/schema'
+
+/**
+ * Get feedback style based on CEFR level
+ */
+function getFeedbackStyle(cefrLevel: string): 'explicit' | 'recast' | 'elicitation' {
+  if (cefrLevel === 'A1' || cefrLevel === 'A2') {
+    return 'explicit' // Beginners need clear explanations
+  } else if (cefrLevel === 'B1' || cefrLevel === 'B2') {
+    return 'recast' // Intermediate learners benefit from natural rephrasing
+  } else {
+    return 'elicitation' // Advanced learners should self-correct
+  }
+}
+
+/**
+ * Build system prompt based on user preferences and CEFR level
+ */
+function buildSystemPrompt(params: {
+  cefrLevel: string
+  correctionMode: CorrectionMode
+  feedbackStyle: 'explicit' | 'recast' | 'elicitation'
+  activeTargets: string[]
+}): string {
+  const { cefrLevel, correctionMode, feedbackStyle, activeTargets } = params
+
+  // Correction timing instructions
+  const correctionInstructions = {
+    immediate: `IMMEDIATE CORRECTION MODE:
+- Interrupt and correct EVERY error as soon as you notice it
+- Wait for the student to retry the sentence correctly before continuing
+- Say: "Let me stop you there. You said '...' but it should be '...'. Can you try again?"
+- This prevents fossilization of errors - better to fix now than later!`,
+
+    balanced: `BALANCED CORRECTION MODE:
+- Batch corrections every 2-3 turns to avoid disrupting flow
+- Keep corrections brief and encouraging
+- Focus on 1-2 most important errors per batch
+- Balance between accuracy and conversation fluency`,
+
+    gentle: `GENTLE CORRECTION MODE:
+- Only correct major errors that significantly impact communication
+- Wait until natural topic transitions to give feedback
+- Prioritize building confidence over perfect accuracy
+- Acknowledge what the student did well before correcting`,
+  }
+
+  // Feedback style instructions
+  const feedbackInstructions = {
+    explicit: `EXPLICIT FEEDBACK (Beginner Level):
+When correcting, be very clear and direct:
+❌ Wrong: "I go work"
+✅ Correct: "I go TO work"
+💡 Rule: Use "to" before the base verb after "go"
+
+Always explain WHY the correction is needed.`,
+
+    recast: `RECAST FEEDBACK (Intermediate Level):
+When correcting, naturally rephrase with the correct form:
+Student: "I go work every day"
+You: "Oh, you go TO work every day? That's a long commute!"
+
+Embed corrections naturally without explicit grammar explanations unless asked.`,
+
+    elicitation: `ELICITATION FEEDBACK (Advanced Level):
+When correcting, prompt self-correction:
+Student: "I go work every day"
+You: "You go... what? Think about the verb pattern."
+
+Force the student to notice and fix their own errors. Only provide the answer if they're stuck.`,
+  }
+
+  return `You are a friendly English tutor helping Japanese learners practice everyday conversation (CEFR: ${cefrLevel}).
+
+CONVERSATION GOALS:
+- Have natural, engaging conversations about everyday topics
+- Help the student practice these phrases naturally when opportunities arise: ${activeTargets.join(', ')}
+- Keep student speaking ≥65% of the time
+
+YOUR TEACHING APPROACH:
+1. ALWAYS respond naturally to what the student actually says first
+2. Build genuine conversation - ask follow-up questions, show interest
+3. Only introduce target phrases when they fit naturally into the conversation context
+4. If a target phrase fits the conversation (after 4-5 turns), you can gently suggest: "By the way, you could also say '[phrase]' in this situation"
+5. Never force phrases that don't match the conversation topic
+
+${correctionInstructions[correctionMode]}
+
+${feedbackInstructions[feedbackStyle]}
+
+STYLE:
+- Be concise (1-2 sentences per turn)
+- Be patient and encouraging
+- Let the conversation flow naturally
+- The student can communicate via voice OR text - respond naturally to both
+
+Remember: Natural conversation comes first. Target phrases are secondary and should only be introduced when they genuinely fit the context.`
+}
 
 /**
  * Generate ephemeral token for OpenAI Realtime API
@@ -22,7 +120,7 @@ export async function POST(req: NextRequest) {
     // Get user profile for system prompt
     const { data: profile } = await supabase
       .from('users')
-      .select('id, display_name, cefr_level')
+      .select('id, display_name, cefr_level, correction_mode')
       .eq('auth_user_id', authUser.id)
       .single()
 
@@ -41,33 +139,18 @@ export async function POST(req: NextRequest) {
 
     const activeTargets = targets?.map((t) => t.phrase) || []
 
-    // Build system prompt
-    const systemPrompt = `You are a friendly English tutor helping Japanese learners practice everyday conversation (CEFR: ${profile.cefr_level}).
+    // Get correction mode and feedback style
+    // Use user's preference, default to 'balanced' if not set
+    const correctionMode: CorrectionMode = (profile.correction_mode as CorrectionMode) || 'balanced'
+    const feedbackStyle = getFeedbackStyle(profile.cefr_level)
 
-CONVERSATION GOALS:
-- Have natural, engaging conversations about everyday topics
-- Help the student practice these phrases naturally when opportunities arise: ${activeTargets.join(', ')}
-- Keep student speaking ≥65% of the time
-
-YOUR TEACHING APPROACH:
-1. ALWAYS respond naturally to what the student actually says first
-2. Build genuine conversation - ask follow-up questions, show interest
-3. Only introduce target phrases when they fit naturally into the conversation context
-4. If a target phrase fits the conversation (after 4-5 turns), you can gently suggest: "By the way, you could also say '[phrase]' in this situation"
-5. Never force phrases that don't match the conversation topic
-
-CORRECTIONS:
-- Batch corrections every 3-4 turns to avoid interrupting flow
-- Keep corrections brief and encouraging
-- Focus on conversation, not drilling
-
-STYLE:
-- Be concise (1-2 sentences per turn)
-- Be patient and encouraging
-- Let the conversation flow naturally
-- The student can communicate via voice OR text - respond naturally to both
-
-Remember: Natural conversation comes first. Target phrases are secondary and should only be introduced when they genuinely fit the context.`
+    // Build system prompt dynamically
+    const systemPrompt = buildSystemPrompt({
+      cefrLevel: profile.cefr_level,
+      correctionMode,
+      feedbackStyle,
+      activeTargets,
+    })
 
     // Request ephemeral token from OpenAI
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {

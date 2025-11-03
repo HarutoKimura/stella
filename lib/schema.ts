@@ -45,6 +45,11 @@ export const SessionSummaryInSchema = z.object({
     example: z.string(),
     correction: z.string(),
   })),
+  transcript: z.array(z.object({
+    role: z.enum(["user", "tutor"]),
+    text: z.string(),
+    timestamp: z.number(),
+  })).optional(),
   metrics: z.object({
     wpm: z.number().optional(),
     filler_rate: z.number().optional(),
@@ -59,12 +64,15 @@ export const PlannerInputSchema = z.object({
 });
 
 // Database types
+export type CorrectionMode = 'immediate' | 'balanced' | 'gentle';
+
 export type DbUser = {
   id: string;
   auth_user_id: string;
   display_name: string | null;
   native_language: string;
   cefr_level: string;
+  correction_mode: CorrectionMode;
   created_at: string;
 };
 
@@ -107,5 +115,63 @@ export type DbFluencySnapshot = {
   wpm: number | null;
   filler_rate: number | null;
   avg_pause_ms: number | null;
+  mean_utterance_length: number | null;
+  unique_words_count: number | null;
+  total_words_count: number | null;
+  grammar_accuracy: number | null;
+  pronunciation_score: number | null;
+  turn_ratio: number | null;
+  confidence_score: number | null;
+  created_at: string;
+};
+
+export type DbProgressMetric = {
+  id: string;
+  user_id: string;
+  session_id: string;
+  fluency_score: number;
+  grammar_score: number;
+  vocabulary_score: number;
+  comprehension_score: number;
+  confidence_score: number;
+  total_words: number;
+  unique_words: number;
+  lexical_diversity: number;
+  cefr_distribution: Record<string, number>;
+  grammar_errors: number;
+  vocab_errors: number;
+  pronunciation_errors: number;
+  total_errors: number;
+  response_time_avg_ms: number;
+  topic_switches: number;
+  egi_score: number;
+  created_at: string;
+};
+
+export type DbWeeklyProgress = {
+  id: string;
+  user_id: string;
+  week_start_date: string;
+  total_sessions: number;
+  total_minutes: number;
+  avg_fluency_score: number;
+  avg_grammar_score: number;
+  avg_vocabulary_score: number;
+  avg_egi_score: number;
+  phrases_mastered: number;
+  new_vocabulary: number;
+  error_reduction_rate: number;
+  days_practiced: number;
+  streak_maintained: boolean;
+  created_at: string;
+};
+
+export type DbCefrTrajectory = {
+  id: string;
+  user_id: string;
+  estimated_cefr: string;
+  confidence_level: number;
+  evaluation_basis: Record<string, string>;
+  notes: string | null;
   created_at: string;
 };

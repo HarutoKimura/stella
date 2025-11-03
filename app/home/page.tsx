@@ -45,7 +45,7 @@ export default function HomePage() {
   return (
     <OrbBG>
       <IntentCaption />
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 py-12">
         <div className="text-center mb-12">
           <h1 className="text-6xl font-bold text-white mb-4">
             Ready to practice?
@@ -55,7 +55,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl w-full mb-16">
           <a
             href="/free_conversation"
             className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20 hover:bg-white/20 transition-colors cursor-pointer"

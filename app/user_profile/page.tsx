@@ -1,18 +1,20 @@
 'use client'
 
 import { OrbBG } from '@/components/OrbBG'
-import { ProfileCards } from '@/components/ProfileCards'
+import { SessionHistory } from '@/components/SessionHistory'
+import { LearningInsights } from '@/components/LearningInsights'
+import { PhraseLibrary } from '@/components/PhraseLibrary'
+import { StatisticalDashboard } from '@/components/StatisticalDashboard'
 import { createClient } from '@/lib/supabaseClient'
-import { DbTarget, DbFluencySnapshot } from '@/lib/schema'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+type TabType = 'statistics' | 'history' | 'insights' | 'phrases'
+
 export default function UserProfilePage() {
+  const [activeTab, setActiveTab] = useState<TabType>('statistics')
   const [displayName, setDisplayName] = useState('')
   const [cefr, setCefr] = useState('B1')
-  const [masteredCount, setMasteredCount] = useState(0)
-  const [weeklyMasteredCount, setWeeklyMasteredCount] = useState(0)
-  const [fluencyData, setFluencyData] = useState<DbFluencySnapshot[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
@@ -46,38 +48,6 @@ export default function UserProfilePage() {
 
       setDisplayName(profile.display_name || '')
       setCefr(profile.cefr_level)
-
-      // Get mastered targets count
-      const { data: targets } = await supabase
-        .from('targets')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('status', 'mastered')
-
-      setMasteredCount(targets?.length || 0)
-
-      // Get weekly mastered count
-      const oneWeekAgo = new Date()
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-
-      const { data: weeklyTargets } = await supabase
-        .from('targets')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('status', 'mastered')
-        .gte('last_seen_at', oneWeekAgo.toISOString())
-
-      setWeeklyMasteredCount(weeklyTargets?.length || 0)
-
-      // Get fluency snapshots
-      const { data: snapshots } = await supabase
-        .from('fluency_snapshots')
-        .select('*')
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: true })
-        .limit(10)
-
-      setFluencyData(snapshots || [])
     } catch (error) {
       console.error('Failed to load profile:', error)
     } finally {
@@ -168,6 +138,18 @@ export default function UserProfilePage() {
               </div>
             </div>
 
+            {/* Info about correction mode */}
+            <div className="mb-4 bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🟢</span>
+                <h3 className="text-white font-semibold">Gentle Correction Mode</h3>
+              </div>
+              <p className="text-gray-300 text-sm">
+                Your AI tutor uses gentle corrections to maintain conversation flow while helping you improve.
+                The tutor focuses on major errors and provides feedback naturally without interrupting too often.
+              </p>
+            </div>
+
             <button
               onClick={handleUpdateProfile}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
@@ -176,12 +158,58 @@ export default function UserProfilePage() {
             </button>
           </div>
 
-          {/* Stats cards */}
-          <ProfileCards
-            masteredCount={masteredCount}
-            weeklyMasteredCount={weeklyMasteredCount}
-            fluencyData={fluencyData}
-          />
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('statistics')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'statistics'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              📈 Statistics
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'history'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              📜 History
+            </button>
+            <button
+              onClick={() => setActiveTab('insights')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'insights'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              💡 Insights
+            </button>
+            <button
+              onClick={() => setActiveTab('phrases')}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                activeTab === 'phrases'
+                  ? 'bg-cyan-600 text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              📚 Phrases
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {activeTab === 'statistics' && <StatisticalDashboard />}
+
+          {activeTab === 'history' && <SessionHistory />}
+
+          {activeTab === 'insights' && <LearningInsights />}
+
+          {activeTab === 'phrases' && <PhraseLibrary />}
         </div>
       </div>
     </OrbBG>

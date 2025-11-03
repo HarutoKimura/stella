@@ -5,6 +5,7 @@ import { IntentCaption } from '@/components/IntentCaption'
 import { BubbleContainer } from '@/components/BubbleContainer'
 import Orb from '@/components/Orb'
 import SpotlightCard from '@/components/SpotlightCard'
+import { Stopwatch } from '@/components/Stopwatch'
 import { useSessionStore } from '@/lib/sessionStore'
 import { useBubbleStore } from '@/lib/bubbleStore'
 import { useRealtime } from '@/lib/useRealtime'
@@ -15,6 +16,7 @@ import { createClient } from '@/lib/supabaseClient'
 import { FloatingTopicContainer } from '@/components/FloatingTopicContainer'
 import { TopicCardData } from '@/components/FloatingTopicCard'
 import { detectConversationStruggle, generateFloatingTopicCards } from '@/lib/topicSuggestions'
+import { assessPronunciation, usePronunciationStore } from '@/lib/pronunciationStore'
 
 export default function FreeConversationPage() {
   const [input, setInput] = useState('')
@@ -97,22 +99,40 @@ export default function FreeConversationPage() {
       cefr: profile.cefr_level,
     })
 
-    // If no active session, start one
-    if (!sessionId) {
+    // Auto-start session with gentle mode (no selection needed)
+    if (profile.id && profile.cefr_level && !sessionId) {
       await startNewSession(profile.id, profile.cefr_level)
     }
   }
 
   const startNewSession = async (userId: string, cefr: string) => {
     try {
+      // Always use gentle mode for the best balance
+      await supabase
+        .from('users')
+        .update({ correction_mode: 'gentle' })
+        .eq('id', userId)
+
       // Get micro-pack from planner
       const plannerRes = await fetch('/api/planner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({ cefr }),
       })
 
+      if (!plannerRes.ok) {
+        const errorData = await plannerRes.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Planner API error:', errorData)
+        throw new Error(errorData.error || 'Failed to generate micro-pack')
+      }
+
       const microPack = await plannerRes.json()
+
+      if (!microPack.targets || !Array.isArray(microPack.targets)) {
+        console.error('Invalid microPack response:', microPack)
+        throw new Error('Invalid response from planner')
+      }
 
       // Create session in DB
       const { data: session } = await supabase
@@ -141,18 +161,84 @@ export default function FreeConversationPage() {
         microPack.targets.map((t: any) => t.phrase)
       )
 
-      // Start realtime connection
+      // Start realtime connection with gentle mode
       await start({
         userId,
         sessionId: session.id,
       })
     } catch (error) {
       console.error('Failed to start session:', error)
+      // Show error to user
+      alert(`Failed to start session: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   const handleDismissFloatingCard = (cardId: string) => {
     setFloatingCards((prev) => prev.filter((card) => card.id !== cardId))
+  }
+
+  const handleStopSession = async () => {
+    // Stop WebRTC connection
+    stop()
+
+    // Save session and redirect to review
+    const activeTargets = useSessionStore.getState().activeTargets
+    const currentTranscript = useSessionStore.getState().transcript
+    const currentCorrections = useSessionStore.getState().corrections
+    const currentSessionId = useSessionStore.getState().sessionId
+
+    if (!currentSessionId) return
+
+    try {
+      // Collect used/missed targets
+      const usedTargets = activeTargets.filter((t) => t.used).map((t) => t.phrase)
+      const missedTargets = activeTargets.filter((t) => !t.used).map((t) => t.phrase)
+
+      // Call summarize API with full transcript and corrections
+      await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: currentSessionId,
+          usedTargets,
+          missedTargets,
+          corrections: currentCorrections,
+          transcript: currentTranscript,
+          metrics: {
+            wpm: 0,
+            filler_rate: 0,
+            avg_pause_ms: 0,
+          },
+        }),
+      })
+
+      // Assess pronunciation and wait for it to complete
+      console.log('[Stop Session] Starting pronunciation assessment...')
+      try {
+        const pronunciationResult = await assessPronunciation(currentSessionId)
+        if (pronunciationResult) {
+          console.log('[Pronunciation Assessment] Complete:', pronunciationResult.averageScores)
+        } else {
+          console.log('[Pronunciation Assessment] No audio segments to assess')
+        }
+      } catch (error) {
+        console.error('[Pronunciation Assessment] Failed:', error)
+        // Continue anyway - don't block the user
+      }
+
+      // Clear session from store
+      useSessionStore.getState().endSession()
+
+      // Clear pronunciation store for next session
+      usePronunciationStore.getState().clearAudioSegments()
+
+      // Navigate to review page
+      router.push(`/session-review/${currentSessionId}`)
+    } catch (error) {
+      console.error('Failed to save session:', error)
+      // Still redirect to home on error
+      router.push('/home')
+    }
   }
 
   const handleSend = async (e: React.FormEvent) => {
@@ -166,9 +252,10 @@ export default function FreeConversationPage() {
       const intent = parseTextIntent(message)
       if (intent.type !== 'unknown') {
         if (intent.type === 'stop') {
-          stop()
+          await handleStopSession()
+        } else {
+          await executeIntent(intent)
         }
-        await executeIntent(intent)
         setInput('')
         return
       }
@@ -220,22 +307,20 @@ export default function FreeConversationPage() {
                 </div>
               </SpotlightCard>
 
+              {/* Stopwatch - Session Timer */}
+              {status === 'connected' && (
+                <SpotlightCard className="!p-2 !rounded-lg" spotlightColor="rgba(139, 92, 246, 0.3)">
+                  <Stopwatch isRunning={status === 'connected'} className="text-purple-300" />
+                </SpotlightCard>
+              )}
+
               {/* Session control buttons */}
               <div className="flex items-center gap-2">
-                {status === 'idle' || status === 'disconnected' || status === 'error' ? (
-                  <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(34, 197, 94, 0.3)">
-                    <button
-                      onClick={() => user?.id && startNewSession(user.id, user.cefr)}
-                      className="text-green-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
-                    >
-                      ▶️ Start
-                    </button>
-                  </SpotlightCard>
-                ) : null}
+                {/* Start button removed - users choose correction mode cards instead */}
                 {status === 'connected' || status === 'connecting' ? (
                   <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(239, 68, 68, 0.3)">
                     <button
-                      onClick={stop}
+                      onClick={handleStopSession}
                       className="text-red-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
                     >
                       ⏹️ Stop
@@ -293,16 +378,19 @@ export default function FreeConversationPage() {
             </SpotlightCard>
           )}
 
-          {/* Centered Orb - Static AI Tutor Visual */}
-          <div className="flex flex-col items-center justify-center mt-12">
+          {/* Centered Orb */}
+          <div className="flex flex-col items-center justify-center mt-12 relative">
+            {/* Orb Background - distorted during loading */}
             <div style={{ width: '100%', maxWidth: '600px', height: '600px', position: 'relative' }}>
               <Orb
-                hue={0}
-                hoverIntensity={0}
-                rotateOnHover={false}
-                forceHoverState={false}
+                hue={200}
+                hoverIntensity={1.5}
+                rotateOnHover={true}
+                forceHoverState={status === 'connecting' || status === 'idle'}
               />
             </div>
+
+            {/* AI Tutor speaking indicator - shown during active session */}
             {isTutorSpeaking && (
               <SpotlightCard className="mt-6 !p-4" spotlightColor="rgba(59, 130, 246, 0.3)">
                 <p className="text-xl text-blue-300 animate-pulse font-medium">
