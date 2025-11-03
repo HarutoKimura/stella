@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
     // STEP 2: OpenAI Analysis for EGI Scores
     console.log('[Accent Test API] Starting OpenAI analysis...')
 
-    const openaiPrompt = `You are an English assessment engine for language learners. Analyze the following speech assessment data and provide a comprehensive EGI (English Grading Index) evaluation.
+    const openaiPrompt = `You are an expert English speech coach and assessment engine. Analyze the following speech data and provide comprehensive feedback that actually teaches, not just measures.
 
 **Recognized Speech Text:**
 "${recognizedText}"
@@ -232,18 +232,34 @@ export async function POST(req: NextRequest) {
 
 **Current CEFR Level:** ${userProfile.cefr_level}
 
-**Task:**
-1. Evaluate the grammar quality based on the text (look for sentence structure, tense usage, etc.)
+**Task Part 1: Quantitative Assessment**
+1. Evaluate the grammar quality (sentence structure, tense usage, articles, prepositions)
 2. Evaluate vocabulary richness and appropriateness
 3. Assess overall confidence and communication effectiveness
-4. Calculate an overall EGI score (0-100) that combines:
+4. Calculate an overall EGI score (0-100) combining:
    - Pronunciation (25%)
    - Fluency (20%)
    - Grammar (25%)
    - Vocabulary (20%)
    - Confidence (10%)
-5. Estimate the CEFR level (A1-C2) based on all factors
-6. Provide brief feedback on strengths and areas for improvement
+5. Estimate the CEFR level (A1-C2)
+
+**Task Part 2: Semantic Feedback (This is what makes you better than Elsa!)**
+Identify up to 3 specific, actionable linguistic issues in the transcript:
+
+For each issue:
+- Extract the exact sentence/phrase with the problem
+- Provide the corrected, natural-sounding version
+- Give ONE specific, actionable tip (not generic advice)
+- Categorize: grammar, vocabulary, pronunciation, fluency, idiom, or structure
+- Rate severity: low, medium, or high
+
+Focus on:
+- Grammar mistakes that sound unnatural to native speakers
+- Word choice that could be more natural or precise
+- Sentence structures that could be simplified or improved
+- Common non-native patterns (e.g., "go to abroad" → "go abroad")
+- Missing articles, wrong prepositions, awkward phrasing
 
 Return ONLY a valid JSON object with this exact structure:
 {
@@ -258,7 +274,17 @@ Return ONLY a valid JSON object with this exact structure:
     "strengths": ["<strength 1>", "<strength 2>"],
     "improvements": ["<improvement 1>", "<improvement 2>"],
     "next_steps": "<brief suggestion for improvement>"
-  }
+  },
+  "semantic_feedback": [
+    {
+      "category": "<grammar|vocabulary|pronunciation|fluency|idiom|structure>",
+      "original": "<exact sentence or phrase with issue>",
+      "corrected": "<natural, corrected version>",
+      "tip": "<one specific, actionable tip - be concrete!>",
+      "explanation": "<why this correction matters - 1 sentence>",
+      "severity": "<low|medium|high>"
+    }
+  ]
 }`
 
     const completion = await openai.chat.completions.create({
@@ -330,6 +356,34 @@ Return ONLY a valid JSON object with this exact structure:
 
     console.log('[Accent Test API] Successfully saved accent test:', accentTest.id)
 
+    // STEP 3.5: Save Semantic Feedback Tips to Database
+    const semanticFeedback = egiAnalysis.semantic_feedback || []
+    console.log('[Accent Test API] Saving semantic feedback tips:', semanticFeedback.length)
+
+    if (semanticFeedback.length > 0) {
+      const feedbackTips = semanticFeedback.map((tip: any) => ({
+        accent_test_id: accentTest.id,
+        user_id: userProfile.id,
+        category: tip.category,
+        original_sentence: tip.original,
+        corrected_sentence: tip.corrected,
+        tip: tip.tip,
+        explanation: tip.explanation,
+        severity: tip.severity,
+      }))
+
+      const { error: feedbackError } = await supabase
+        .from('feedback_tips')
+        .insert(feedbackTips)
+
+      if (feedbackError) {
+        console.error('[Accent Test API] Failed to save feedback tips:', feedbackError)
+        // Don't fail the whole request if feedback tips fail
+      } else {
+        console.log('[Accent Test API] Successfully saved', feedbackTips.length, 'feedback tips')
+      }
+    }
+
     // STEP 4: Return results (use rounded scores for consistency)
     return NextResponse.json({
       success: true,
@@ -346,6 +400,7 @@ Return ONLY a valid JSON object with this exact structure:
       azure_scores: azureScores,
       recognized_text: recognizedText,
       feedback: egiAnalysis.feedback,
+      semantic_feedback: semanticFeedback,
     })
   } catch (error) {
     console.error('[Accent Test API] Error:', error)

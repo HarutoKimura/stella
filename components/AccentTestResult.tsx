@@ -36,6 +36,14 @@ interface AccentTestResultProps {
       improvements: string[]
       next_steps: string
     }
+    semantic_feedback?: Array<{
+      category: string
+      original: string
+      corrected: string
+      tip: string
+      explanation: string
+      severity: string
+    }>
   }
   onRetake: () => void
 }
@@ -262,6 +270,89 @@ export function AccentTestResult({ results, onRetake }: AccentTestResultProps) {
           <p className="text-gray-300 text-sm">{results.feedback.next_steps}</p>
         </div>
       </div>
+
+      {/* Semantic Feedback - Actionable Tips (Stage 2: What makes you better than Elsa!) */}
+      {results.semantic_feedback && results.semantic_feedback.length > 0 && (
+        <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 backdrop-blur-md rounded-2xl p-6 border border-purple-400/30 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">🎯</span>
+            <h3 className="text-xl font-bold text-white">
+              Specific Tips to Sound More Natural
+            </h3>
+          </div>
+          <p className="text-gray-300 text-sm mb-6">
+            These are actual mistakes from your speech with concrete fixes. Practice these!
+          </p>
+
+          <div className="space-y-4">
+            {results.semantic_feedback.map((tip, idx) => {
+              const severityColor = {
+                high: 'border-red-400/50 bg-red-500/10',
+                medium: 'border-amber-400/50 bg-amber-500/10',
+                low: 'border-blue-400/50 bg-blue-500/10',
+              }[tip.severity] || 'border-gray-400/50 bg-gray-500/10'
+
+              const categoryIcon = {
+                grammar: '📝',
+                vocabulary: '📚',
+                pronunciation: '🗣️',
+                fluency: '⚡',
+                idiom: '💬',
+                structure: '🏗️',
+              }[tip.category] || '💡'
+
+              return (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-lg border ${severityColor} transition-all hover:scale-[1.02]`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{categoryIcon}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-bold text-purple-300 uppercase">
+                          {tip.category}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {tip.severity} priority
+                        </span>
+                      </div>
+
+                      {/* Original vs Corrected */}
+                      <div className="mb-3">
+                        <div className="mb-2">
+                          <span className="text-red-400 text-sm font-semibold">❌ You said:</span>
+                          <p className="text-gray-300 italic ml-5 mt-1">"{tip.original}"</p>
+                        </div>
+                        <div>
+                          <span className="text-green-400 text-sm font-semibold">✅ Try this:</span>
+                          <p className="text-white font-medium ml-5 mt-1">"{tip.corrected}"</p>
+                        </div>
+                      </div>
+
+                      {/* Actionable Tip */}
+                      <div className="p-3 bg-blue-500/20 border border-blue-400/30 rounded-lg mb-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-blue-300">💡</span>
+                          <div>
+                            <p className="text-blue-200 font-semibold text-sm">Tip:</p>
+                            <p className="text-gray-200 text-sm">{tip.tip}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Explanation */}
+                      {tip.explanation && (
+                        <p className="text-gray-400 text-xs italic">{tip.explanation}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

@@ -26,6 +26,14 @@ interface AccentTestResults {
     improvements: string[]
     next_steps: string
   }
+  semantic_feedback?: Array<{
+    category: string
+    original: string
+    corrected: string
+    tip: string
+    explanation: string
+    severity: string
+  }>
 }
 
 export default function AccentTestPage() {
