@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         .in('phrase', targets.map((t: { phrase: string }) => t.phrase))
 
       const existingPhrases = new Set(existingTargets.data?.map((t) => t.phrase) || [])
-      const newTargets = targetInserts.filter((t) => !existingPhrases.has(t.phrase))
+      const newTargets = targetInserts.filter((t: { phrase: string }) => !existingPhrases.has(t.phrase))
 
       if (newTargets.length > 0) {
         const { error: targetError } = await supabase

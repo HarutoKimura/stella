@@ -55,7 +55,18 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl w-full mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full mb-16">
+          <a
+            href="/accent-test"
+            className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-md rounded-lg p-6 border border-blue-400/30 hover:border-blue-400/50 transition-all cursor-pointer"
+          >
+            <div className="text-4xl mb-3">🎤</div>
+            <h3 className="text-white text-xl font-bold mb-2">AI Accent Test</h3>
+            <p className="text-gray-300 text-sm">
+              Get your EGI score and personalized feedback
+            </p>
+          </a>
+
           <a
             href="/free_conversation"
             className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20 hover:bg-white/20 transition-colors cursor-pointer"

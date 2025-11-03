@@ -237,7 +237,7 @@ export function useRealtime() {
             return
           }
 
-          analyser.getByteTimeDomainData(dataArray)
+          analyser.getByteTimeDomainData(dataArray as any)
 
           let sumSquares = 0
           for (let i = 0; i < dataArray.length; i++) {
