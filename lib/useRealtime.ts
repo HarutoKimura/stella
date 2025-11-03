@@ -8,6 +8,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useSessionStore } from './sessionStore'
 import { useBubbleStore } from './bubbleStore'
+import { usePronunciationStore } from './pronunciationStore'
 import { parseCorrections, containsCorrection } from './correctionParser'
 
 type VADState = {
@@ -21,7 +22,7 @@ type VADState = {
 }
 
 const SPEECH_RMS_THRESHOLD = 0.02
-const SILENCE_DURATION_MS = 750
+const SILENCE_DURATION_MS = 2000 // Increased from 750ms to 2000ms to capture longer phrases
 const MIN_UTTERANCE_MS = 500
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
@@ -59,6 +60,7 @@ export function useRealtime() {
   const addCorrection = useSessionStore((state) => state.addCorrection)
   const addTutorMessage = useBubbleStore((state) => state.addTutorMessage)
   const addUserMessage = useBubbleStore((state) => state.addUserMessage)
+  const addAudioSegment = usePronunciationStore((state) => state.addAudioSegment)
 
   const lastUserMessageRef = useRef<string>('')
   const isActiveRef = useRef(false)
@@ -107,6 +109,9 @@ export function useRealtime() {
           addTurn('user', text)
           addUserMessage(text)
           lastUserMessageRef.current = text
+
+          // Save audio segment for pronunciation assessment
+          addAudioSegment(blob, text)
         }
       } catch (err) {
         // Only log if session is still active
@@ -117,7 +122,7 @@ export function useRealtime() {
         }
       }
     },
-    [addTurn, addUserMessage]
+    [addTurn, addUserMessage, addAudioSegment]
   )
 
   const startRecording = useCallback(() => {
@@ -669,6 +674,9 @@ export function useRealtime() {
 
     setMicActive(false)
     bufferRef.current = ''
+
+    // Note: Don't clear pronunciation store here - we need it for post-session assessment
+    // It will be cleared when a new session starts
   }, [teardownVoiceActivityDetection])
 
   // Stop session

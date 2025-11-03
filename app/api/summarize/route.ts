@@ -59,7 +59,12 @@ export async function POST(req: NextRequest) {
     let complexityAnalysis = null
 
     try {
-      const analyzeResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/analyze-transcript`, {
+      // Use the request's host to determine the correct URL
+      const host = req.headers.get('host') || 'localhost:3000'
+      const protocol = host.includes('localhost') ? 'http' : 'https'
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
+
+      const analyzeResponse = await fetch(`${baseUrl}/api/analyze-transcript`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -189,7 +194,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert enhanced fluency snapshot
-    await supabase.from('fluency_snapshots').insert({
+    console.log('[Summarize] Inserting fluency_snapshots for session:', input.sessionId, 'user:', userId)
+    const { data: fluencyData, error: fluencyError } = await supabase.from('fluency_snapshots').insert({
       user_id: userId,
       session_id: input.sessionId,
       wpm: metrics.wpm,
@@ -202,7 +208,13 @@ export async function POST(req: NextRequest) {
       pronunciation_score: metrics.pronunciation_score,
       turn_ratio: metrics.turn_ratio,
       confidence_score: metrics.confidence_score,
-    })
+    }).select()
+
+    if (fluencyError) {
+      console.error('[Summarize] Failed to insert fluency_snapshots:', fluencyError)
+    } else {
+      console.log('[Summarize] Successfully inserted fluency_snapshots:', fluencyData)
+    }
 
     // Insert comprehensive progress metrics
     await supabase.from('progress_metrics').insert({

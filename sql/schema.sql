@@ -55,6 +55,17 @@ create table if not exists public.fluency_snapshots (
   wpm numeric,
   filler_rate numeric,
   avg_pause_ms int,
+  mean_utterance_length numeric,
+  unique_words_count int,
+  total_words_count int,
+  grammar_accuracy numeric,
+  pronunciation_score numeric,
+  accuracy_score numeric,
+  fluency_score numeric,
+  prosody_score numeric,
+  completeness_score numeric,
+  turn_ratio numeric,
+  confidence_score numeric,
   created_at timestamptz default now()
 );
 

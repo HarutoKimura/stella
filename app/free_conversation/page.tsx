@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabaseClient'
 import { FloatingTopicContainer } from '@/components/FloatingTopicContainer'
 import { TopicCardData } from '@/components/FloatingTopicCard'
 import { detectConversationStruggle, generateFloatingTopicCards } from '@/lib/topicSuggestions'
+import { assessPronunciation, usePronunciationStore } from '@/lib/pronunciationStore'
 
 export default function FreeConversationPage() {
   const [input, setInput] = useState('')
@@ -116,11 +117,12 @@ export default function FreeConversationPage() {
       const plannerRes = await fetch('/api/planner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({ cefr }),
       })
 
       if (!plannerRes.ok) {
-        const errorData = await plannerRes.json()
+        const errorData = await plannerRes.json().catch(() => ({ error: 'Unknown error' }))
         console.error('Planner API error:', errorData)
         throw new Error(errorData.error || 'Failed to generate micro-pack')
       }
@@ -166,6 +168,8 @@ export default function FreeConversationPage() {
       })
     } catch (error) {
       console.error('Failed to start session:', error)
+      // Show error to user
+      alert(`Failed to start session: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -208,8 +212,25 @@ export default function FreeConversationPage() {
         }),
       })
 
+      // Assess pronunciation and wait for it to complete
+      console.log('[Stop Session] Starting pronunciation assessment...')
+      try {
+        const pronunciationResult = await assessPronunciation(currentSessionId)
+        if (pronunciationResult) {
+          console.log('[Pronunciation Assessment] Complete:', pronunciationResult.averageScores)
+        } else {
+          console.log('[Pronunciation Assessment] No audio segments to assess')
+        }
+      } catch (error) {
+        console.error('[Pronunciation Assessment] Failed:', error)
+        // Continue anyway - don't block the user
+      }
+
       // Clear session from store
       useSessionStore.getState().endSession()
+
+      // Clear pronunciation store for next session
+      usePronunciationStore.getState().clearAudioSegments()
 
       // Navigate to review page
       router.push(`/session-review/${currentSessionId}`)

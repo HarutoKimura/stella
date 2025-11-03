@@ -37,6 +37,18 @@ export function StatisticalDashboard() {
   const [latestTargets, setLatestTargets] = useState<{ used: string[]; missed: string[] }>({ used: [], missed: [] })
   const [latestFluency, setLatestFluency] = useState<any>(null)
   const [userCefrLevel, setUserCefrLevel] = useState<string>('B1')
+  const [showPronunciationDetails, setShowPronunciationDetails] = useState(false)
+  const [pronunciationScores, setPronunciationScores] = useState<{
+    pronunciation_score: number | null
+    accuracy_score: number | null
+    fluency_score: number | null
+    prosody_score: number | null
+    completeness_score: number | null
+  } | null>(null)
+  const [pronunciationHistory, setPronunciationHistory] = useState<Array<{
+    session_id: string
+    pronunciation_score: number
+  }>>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -110,7 +122,29 @@ export function StatisticalDashboard() {
           .single()
 
         setLatestFluency(fluencySnapshot)
+
+        // Extract pronunciation scores
+        if (fluencySnapshot?.pronunciation_score) {
+          setPronunciationScores({
+            pronunciation_score: fluencySnapshot.pronunciation_score,
+            accuracy_score: fluencySnapshot.accuracy_score,
+            fluency_score: fluencySnapshot.fluency_score,
+            prosody_score: fluencySnapshot.prosody_score,
+            completeness_score: fluencySnapshot.completeness_score,
+          })
+        }
       }
+
+      // Get pronunciation history for trend chart (last 10 sessions)
+      const { data: pronunciationData } = await supabase
+        .from('fluency_snapshots')
+        .select('session_id, pronunciation_score')
+        .eq('user_id', profile.id)
+        .not('pronunciation_score', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      setPronunciationHistory(pronunciationData || [])
 
       // Calculate current EGI (average of last 3 sessions)
       const recentEGI = metrics?.slice(0, 3).map(m => m.egi_score) || []
@@ -215,6 +249,17 @@ export function StatisticalDashboard() {
           onClick={() => setShowVocabErrors(!showVocabErrors)}
           clickable={latestCorrections.filter(c => c.type === 'vocab').length > 0}
         />
+        {pronunciationScores?.pronunciation_score && (
+          <ScoreCard
+            icon="🎙️"
+            label="Pronunciation"
+            score={Math.round(pronunciationScores.pronunciation_score)}
+            color="orange"
+            details={pronunciationScores.accuracy_score ? `${Math.round(pronunciationScores.accuracy_score)}% accuracy` : 'Latest assessment'}
+            onClick={() => setShowPronunciationDetails(!showPronunciationDetails)}
+            clickable={true}
+          />
+        )}
         <ScoreCard
           icon="🧠"
           label="Comprehension"
@@ -293,6 +338,193 @@ export function StatisticalDashboard() {
                 )}
               </div>
             ))}
+          </div>
+        </SpotlightCard>
+      )}
+
+      {/* Pronunciation Details (expandable) */}
+      {showPronunciationDetails && pronunciationScores && (
+        <SpotlightCard className="!p-6" spotlightColor="rgba(249, 115, 22, 0.2)">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <span>🎙️</span>
+              <span>Pronunciation Assessment</span>
+              <span className="text-sm text-gray-400 font-normal">
+                (from latest session)
+              </span>
+            </h3>
+            <button
+              onClick={() => setShowPronunciationDetails(false)}
+              className="text-gray-400 hover:text-white text-sm"
+            >
+              ✕ Close
+            </button>
+          </div>
+
+          {/* Overall Pronunciation Score */}
+          {pronunciationScores.pronunciation_score && (
+            <div className="mb-6 bg-orange-500/10 border border-orange-500/20 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-gray-300 text-lg font-medium">Overall Pronunciation</span>
+                <span className="text-4xl font-bold text-orange-400">
+                  {Math.round(pronunciationScores.pronunciation_score)}
+                </span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 h-3 rounded-full transition-all"
+                  style={{ width: `${pronunciationScores.pronunciation_score}%` }}
+                />
+              </div>
+              <p className="text-gray-400 text-sm mt-2 text-center">
+                {pronunciationScores.pronunciation_score >= 80 ? '🎉 Excellent pronunciation!' :
+                 pronunciationScores.pronunciation_score >= 60 ? '👍 Good pronunciation, keep practicing!' :
+                 '💪 Keep working on it!'}
+              </p>
+            </div>
+          )}
+
+          {/* Detailed Scores */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Accuracy Score */}
+            {pronunciationScores.accuracy_score && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🎯</span>
+                  <h4 className="text-blue-400 font-semibold">Accuracy</h4>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Your score:</span>
+                    <span className="text-white font-bold text-xl">{Math.round(pronunciationScores.accuracy_score)}</span>
+                  </div>
+                  <p className="text-gray-400 text-sm mt-2">
+                    How closely your pronunciation matches native speakers
+                  </p>
+                  <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all"
+                      style={{ width: `${pronunciationScores.accuracy_score}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fluency Score */}
+            {pronunciationScores.fluency_score && pronunciationScores.fluency_score > 0 && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">⚡</span>
+                  <h4 className="text-green-400 font-semibold">Fluency</h4>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Your score:</span>
+                    <span className="text-white font-bold text-xl">{Math.round(pronunciationScores.fluency_score)}</span>
+                  </div>
+                  <p className="text-gray-400 text-sm mt-2">
+                    Smoothness and flow of your speech
+                  </p>
+                  <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
+                      style={{ width: `${pronunciationScores.fluency_score}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Prosody Score */}
+            {pronunciationScores.prosody_score && pronunciationScores.prosody_score > 0 && (
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🎵</span>
+                  <h4 className="text-purple-400 font-semibold">Prosody</h4>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Your score:</span>
+                    <span className="text-white font-bold text-xl">{Math.round(pronunciationScores.prosody_score)}</span>
+                  </div>
+                  <p className="text-gray-400 text-sm mt-2">
+                    Naturalness of stress, intonation, and rhythm
+                  </p>
+                  <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all"
+                      style={{ width: `${pronunciationScores.prosody_score}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Completeness Score */}
+            {pronunciationScores.completeness_score && pronunciationScores.completeness_score > 0 && (
+              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">✅</span>
+                  <h4 className="text-cyan-400 font-semibold">Completeness</h4>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Your score:</span>
+                    <span className="text-white font-bold text-xl">{Math.round(pronunciationScores.completeness_score)}</span>
+                  </div>
+                  <p className="text-gray-400 text-sm mt-2">
+                    How fully you expressed your thoughts
+                  </p>
+                  <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-gradient-to-r from-cyan-500 to-teal-500 h-2 rounded-full transition-all"
+                      style={{ width: `${pronunciationScores.completeness_score}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tips Section */}
+          <div className="mt-6 bg-orange-500/5 border border-orange-500/20 rounded-lg p-4">
+            <p className="text-orange-200 text-sm font-medium mb-2">💡 Tips to Improve:</p>
+            <ul className="text-gray-300 text-sm space-y-1">
+              {pronunciationScores.accuracy_score && pronunciationScores.accuracy_score < 70 && (
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">•</span>
+                  <span>Listen to native speakers and practice mimicking their pronunciation</span>
+                </li>
+              )}
+              {pronunciationScores.fluency_score && pronunciationScores.fluency_score < 70 && (
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">•</span>
+                  <span>Practice speaking in longer phrases without pausing mid-sentence</span>
+                </li>
+              )}
+              {pronunciationScores.prosody_score && pronunciationScores.prosody_score < 70 && (
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">•</span>
+                  <span>Focus on stress patterns and natural rhythm in sentences</span>
+                </li>
+              )}
+              {pronunciationScores.completeness_score && pronunciationScores.completeness_score < 70 && (
+                <li className="flex items-start gap-2">
+                  <span className="text-orange-400 mt-0.5">•</span>
+                  <span>Try to speak in complete sentences and finish your thoughts</span>
+                </li>
+              )}
+              {(!pronunciationScores.accuracy_score || pronunciationScores.accuracy_score >= 70) &&
+               (!pronunciationScores.fluency_score || pronunciationScores.fluency_score >= 70) &&
+               (!pronunciationScores.prosody_score || pronunciationScores.prosody_score >= 70) &&
+               (!pronunciationScores.completeness_score || pronunciationScores.completeness_score >= 70) && (
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400 mt-0.5">✓</span>
+                  <span>Great work! Keep practicing to maintain your pronunciation skills</span>
+                </li>
+              )}
+            </ul>
           </div>
         </SpotlightCard>
       )}
@@ -688,7 +920,10 @@ export function StatisticalDashboard() {
       {/* Progress Trend - Multi-line Chart */}
       <SpotlightCard className="!p-6">
         <h3 className="text-xl font-bold text-white mb-4">📈 Skill Progression Over Time</h3>
-        <MultiLineProgressChart metrics={stats.recentMetrics.slice(0, 10).reverse()} />
+        <MultiLineProgressChart
+          metrics={stats.recentMetrics.slice(0, 10).reverse()}
+          pronunciationHistory={pronunciationHistory.reverse()}
+        />
       </SpotlightCard>
     </div>
   )
@@ -720,6 +955,7 @@ function ScoreCard({
     cyan: 'from-cyan-500 to-cyan-600',
     yellow: 'from-yellow-500 to-yellow-600',
     pink: 'from-pink-500 to-pink-600',
+    orange: 'from-orange-500 to-orange-600',
   }
 
   return (
@@ -845,10 +1081,21 @@ function CEFRDistributionChart({ distribution }: { distribution: Record<string, 
   )
 }
 
-function MultiLineProgressChart({ metrics }: { metrics: DbProgressMetric[] }) {
+function MultiLineProgressChart({
+  metrics,
+  pronunciationHistory = [],
+}: {
+  metrics: DbProgressMetric[]
+  pronunciationHistory?: Array<{ session_id: string; pronunciation_score: number }>
+}) {
   if (metrics.length === 0) {
     return <p className="text-gray-400 text-center">Complete more sessions to see trends</p>
   }
+
+  // Create pronunciation map for easy lookup
+  const pronunciationMap = new Map(
+    pronunciationHistory.map(p => [p.session_id, Math.round(p.pronunciation_score)])
+  )
 
   // Prepare data for recharts
   const chartData = metrics.map((metric, index) => ({
@@ -858,6 +1105,7 @@ function MultiLineProgressChart({ metrics }: { metrics: DbProgressMetric[] }) {
     vocabulary: metric.vocabulary_score,
     comprehension: metric.comprehension_score,
     confidence: metric.confidence_score,
+    pronunciation: pronunciationMap.get(metric.session_id) || null,
   }))
 
   return (
@@ -933,10 +1181,23 @@ function MultiLineProgressChart({ metrics }: { metrics: DbProgressMetric[] }) {
             dot={{ fill: '#eab308', r: 4 }}
             activeDot={{ r: 6 }}
           />
+          {pronunciationHistory.length > 0 && (
+            <Line
+              type="monotone"
+              dataKey="pronunciation"
+              name="🎙️ Pronunciation"
+              stroke="#f97316"
+              strokeWidth={2}
+              dot={{ fill: '#f97316', r: 4 }}
+              activeDot={{ r: 6 }}
+              connectNulls={true}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
       <p className="text-gray-500 text-xs text-center mt-2">
         Track your progress across all skill areas • Latest {metrics.length} sessions
+        {pronunciationHistory.length > 0 && ' • Pronunciation scores shown where available'}
       </p>
     </div>
   )

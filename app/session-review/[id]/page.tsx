@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabaseClient'
 import { OrbBG } from '@/components/OrbBG'
 import SpotlightCard from '@/components/SpotlightCard'
+import { PronunciationScores } from '@/components/PronunciationScores'
+import { PronunciationErrors } from '@/components/PronunciationErrors'
 
 type TranscriptTurn = {
   role: 'user' | 'tutor'
@@ -22,6 +24,16 @@ type Correction = {
   issue_type?: string
 }
 
+type PronunciationWord = {
+  word: string
+  accuracyScore: number
+  errorType: 'None' | 'Mispronunciation' | 'Omission' | 'Insertion'
+  phonemes?: Array<{
+    phoneme: string
+    accuracyScore: number
+  }>
+}
+
 type SessionData = {
   id: string
   user_id: string
@@ -34,6 +46,11 @@ type SessionData = {
     corrections?: Correction[]
     usedTargets?: string[]
     missedTargets?: string[]
+    pronunciation_assessment?: {
+      scores: any
+      words: PronunciationWord[]
+      timestamp: string
+    }
   }
 }
 
@@ -49,6 +66,14 @@ export default function SessionReviewPage() {
   const [transcriptExpanded, setTranscriptExpanded] = useState(false)
   const [newPhrase, setNewPhrase] = useState('')
   const [savedPhrases, setSavedPhrases] = useState<string[]>([])
+  const [pronunciationScores, setPronunciationScores] = useState<{
+    accuracyScore?: number
+    fluencyScore?: number
+    pronunciationScore?: number
+    prosodyScore?: number
+    completenessScore?: number
+  } | null>(null)
+  const [pronunciationWords, setPronunciationWords] = useState<PronunciationWord[]>([])
 
   useEffect(() => {
     loadSession()
@@ -94,6 +119,32 @@ export default function SessionReviewPage() {
       }
 
       setSession(sessionData as SessionData)
+
+      // Load pronunciation scores from fluency_snapshots
+      const { data: fluencyData } = await supabase
+        .from('fluency_snapshots')
+        .select('pronunciation_score, accuracy_score, fluency_score, prosody_score, completeness_score')
+        .eq('session_id', sessionId)
+        .eq('user_id', profile.id)
+        .single()
+
+      if (fluencyData) {
+        setPronunciationScores({
+          pronunciationScore: fluencyData.pronunciation_score,
+          accuracyScore: fluencyData.accuracy_score,
+          fluencyScore: fluencyData.fluency_score,
+          prosodyScore: fluencyData.prosody_score,
+          completenessScore: fluencyData.completeness_score,
+        })
+      }
+
+      // Extract pronunciation word-level errors from session summary
+      const pronunciationAssessment = (sessionData as SessionData).summary?.pronunciation_assessment
+      if (pronunciationAssessment?.words) {
+        console.log('[Session Review] Found pronunciation words:', pronunciationAssessment.words.length)
+        setPronunciationWords(pronunciationAssessment.words)
+      }
+
       setLoading(false)
     } catch (err) {
       console.error('Failed to load session:', err)
@@ -208,6 +259,14 @@ export default function SessionReviewPage() {
               )}
             </div>
           </div>
+
+          {/* Pronunciation Scores Section */}
+          <PronunciationScores scores={pronunciationScores ?? undefined} />
+
+          {/* Pronunciation Word-level Errors Section */}
+          {pronunciationWords.length > 0 && (
+            <PronunciationErrors words={pronunciationWords} />
+          )}
 
           {/* Grammar Errors Section */}
           {grammarErrors.length > 0 && (
