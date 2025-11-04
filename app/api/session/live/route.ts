@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     // Get request body
     const body = await req.json() as SaveConversationRequest
-    const { weekId, focusAreas, transcript, insightSummary } = body
+    const { weekId, focusAreas, transcript, insightSummary, coachSessionId } = body
 
     // Validate required fields
     if (!weekId || !focusAreas || !transcript) {
@@ -109,6 +109,7 @@ ${transcript.map(m => `${m.role === 'user' ? 'Student' : 'Coach'}: ${m.text}`).j
           focus_areas: focusAreas,
           transcript: transcript,
           feedback: feedback,
+          coach_session_id: coachSessionId || null,
         },
       ])
       .select()

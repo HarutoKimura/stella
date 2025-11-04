@@ -55,6 +55,7 @@ export interface ConversationSession {
   transcript: ConversationMessage[]
   feedback?: string
   avg_score?: number
+  coach_session_id?: string
   created_at: string
 }
 
@@ -70,6 +71,7 @@ export interface SaveConversationRequest {
   focusAreas: string[]
   transcript: ConversationMessage[]
   insightSummary?: string
+  coachSessionId?: string
 }
 
 export interface SaveConversationResponse {

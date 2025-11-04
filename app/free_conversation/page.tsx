@@ -39,6 +39,15 @@ function FreeConversationContent() {
   // Context from accent test (if redirected from test results)
   const [accentTestFeedback, setAccentTestFeedback] = useState<any[] | null>(null)
 
+  // Context from coach practice session (if redirected from practice)
+  const [coachSessionContext, setCoachSessionContext] = useState<{
+    sessionId: string
+    focusAreas: string[]
+    level: string
+    weekId: number
+    insightSummary?: string
+  } | null>(null)
+
   // Realtime connection
   const { status, error, micActive, isTutorSpeaking, start, sendText, stop } = useRealtime()
 
@@ -47,6 +56,23 @@ function FreeConversationContent() {
 
   useEffect(() => {
     const fromTestId = searchParams.get('from_test')
+    const coachSessionId = searchParams.get('coach_session_id')
+    const focusAreasParam = searchParams.get('focus_areas')
+    const levelParam = searchParams.get('level')
+    const weekIdParam = searchParams.get('week_id')
+    const insightSummaryParam = searchParams.get('insight_summary')
+
+    // Extract coach session context if present
+    if (coachSessionId && focusAreasParam && levelParam && weekIdParam) {
+      console.log('[Coach Session Context] Detected practice session context')
+      setCoachSessionContext({
+        sessionId: coachSessionId,
+        focusAreas: focusAreasParam.split(','),
+        level: levelParam,
+        weekId: parseInt(weekIdParam, 10),
+        insightSummary: insightSummaryParam || undefined,
+      })
+    }
 
     const fetchFeedback = async () => {
       if (!fromTestId) {
@@ -263,6 +289,32 @@ function FreeConversationContent() {
         }),
       })
 
+      // If this conversation came from a coach practice session, save the link
+      if (coachSessionContext) {
+        console.log('[Coach Session Context] Saving conversation session with link to practice')
+
+        // Convert transcript format to match ConversationMessage type
+        const conversationTranscript = currentTranscript.map((msg) => ({
+          role: msg.role as 'user' | 'assistant',
+          text: msg.text,
+          timestamp: new Date().toISOString(),
+        }))
+
+        await fetch('/api/session/live', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weekId: coachSessionContext.weekId,
+            focusAreas: coachSessionContext.focusAreas,
+            transcript: conversationTranscript,
+            insightSummary: coachSessionContext.insightSummary,
+            coachSessionId: coachSessionContext.sessionId,
+          }),
+        })
+
+        console.log('[Coach Session Context] Conversation session saved with practice link')
+      }
+
       // Assess pronunciation and wait for it to complete
       console.log('[Stop Session] Starting pronunciation assessment...')
       try {
@@ -425,6 +477,36 @@ function FreeConversationContent() {
             <SpotlightCard className="mb-4 !border-red-500/50" spotlightColor="rgba(239, 68, 68, 0.2)">
               <div className="text-red-300 text-sm">
                 {error}
+              </div>
+            </SpotlightCard>
+          )}
+
+          {/* Coach Session Context - Applying Practice */}
+          {coachSessionContext && (
+            <SpotlightCard className="mb-4 !border-purple-400/30" spotlightColor="rgba(168, 85, 247, 0.2)">
+              <div className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">🎓</span>
+                  <h3 className="font-semibold text-purple-300">Applying Your Practice Session</h3>
+                </div>
+                <p className="text-sm text-gray-300 mb-2">
+                  This conversation applies what you learned in your structured practice session.
+                </p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-gray-400">Focus areas:</span>
+                  {coachSessionContext.focusAreas.map((area, idx) => (
+                    <span
+                      key={idx}
+                      className="text-xs px-2 py-1 rounded border bg-purple-500/20 text-purple-300 border-purple-400/30"
+                    >
+                      {area}
+                    </span>
+                  ))}
+                  <span className="text-xs text-gray-400 ml-2">Level:</span>
+                  <span className="text-xs px-2 py-1 rounded border bg-indigo-500/20 text-indigo-300 border-indigo-400/30">
+                    {coachSessionContext.level}
+                  </span>
+                </div>
               </div>
             </SpotlightCard>
           )}

@@ -1,3 +1,19 @@
+/**
+ * @deprecated This component has been deprecated in favor of navigating to /free_conversation
+ *
+ * The /free_conversation page provides:
+ * - Voice support via OpenAI Realtime API
+ * - Consistent UI/UX with proven features
+ * - Better code reusability
+ *
+ * To use the new flow:
+ * - Navigate to /free_conversation with search params:
+ *   coach_session_id, focus_areas, level, week_id, insight_summary
+ * - The conversation will be saved with the coach_session_id link automatically
+ *
+ * This component is kept for reference but should not be used in production.
+ */
+
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
@@ -8,6 +24,7 @@ type ConversationSessionProps = {
   level: string
   weekId: number
   insightSummary?: string
+  coachSessionId?: string
   onClose?: () => void
 }
 
@@ -16,6 +33,7 @@ export function ConversationSession({
   level,
   weekId,
   insightSummary,
+  coachSessionId,
   onClose,
 }: ConversationSessionProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([])
@@ -113,6 +131,7 @@ export function ConversationSession({
           focusAreas,
           transcript: messages,
           insightSummary,
+          coachSessionId,
         }),
       })
 
@@ -130,7 +149,7 @@ export function ConversationSession({
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
@@ -243,7 +262,7 @@ export function ConversationSession({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           disabled={isLoading || isSaving}
           className="flex-1 rounded-lg bg-slate-700/50 border border-slate-600/50 px-3 py-2 text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50"
           placeholder="Type your message..."

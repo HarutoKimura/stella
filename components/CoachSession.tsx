@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { CoachTurn } from '@/types/coach'
-import { ConversationSession } from './ConversationSession'
 
 type CoachSessionProps = {
   focusAreas: string[]
@@ -13,11 +13,11 @@ type CoachSessionProps = {
 }
 
 export function CoachSession({ focusAreas, level, weekId, insightText, theme }: CoachSessionProps) {
+  const router = useRouter()
   const [dialogue, setDialogue] = useState<CoachTurn[]>([])
   const [loading, setLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [currentTurn, setCurrentTurn] = useState(0)
-  const [showConversation, setShowConversation] = useState(false)
 
   const startSession = async () => {
     setLoading(true)
@@ -95,6 +95,26 @@ export function CoachSession({ focusAreas, level, weekId, insightText, theme }: 
       default:
         return 'text-gray-400 bg-gray-500/20'
     }
+  }
+
+  const handleStartConversation = () => {
+    if (!sessionId) {
+      console.error('No session ID available')
+      return
+    }
+
+    const params = new URLSearchParams({
+      coach_session_id: sessionId,
+      focus_areas: focusAreas.join(','),
+      level: level,
+      week_id: (weekId || getCurrentWeekId()).toString(),
+    })
+
+    if (insightText) {
+      params.append('insight_summary', insightText)
+    }
+
+    router.push(`/free_conversation?${params.toString()}`)
   }
 
   return (
@@ -271,15 +291,16 @@ export function CoachSession({ focusAreas, level, weekId, insightText, theme }: 
             </button>
           </div>
 
-          {currentTurn === dialogue.length - 1 && !showConversation && (
+          {currentTurn === dialogue.length - 1 && (
             <div className="mt-4 pt-4 border-t border-indigo-700/20">
               <p className="text-xs text-gray-400 text-center mb-4">
                 Great job! You've completed this practice session.
               </p>
               <div className="flex flex-col items-center gap-3">
                 <button
-                  onClick={() => setShowConversation(true)}
-                  className="inline-flex items-center gap-2 text-sm px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold transition-all shadow-lg"
+                  onClick={handleStartConversation}
+                  disabled={!sessionId}
+                  className="inline-flex items-center gap-2 text-sm px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="text-lg">🎙️</span>
                   Try in Live Conversation
@@ -290,19 +311,6 @@ export function CoachSession({ focusAreas, level, weekId, insightText, theme }: 
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Live Conversation Mode */}
-      {showConversation && (
-        <div className="mt-6">
-          <ConversationSession
-            focusAreas={focusAreas}
-            level={level}
-            weekId={weekId || getCurrentWeekId()}
-            insightSummary={insightText}
-            onClose={() => setShowConversation(false)}
-          />
         </div>
       )}
     </div>
