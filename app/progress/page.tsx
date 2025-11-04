@@ -23,15 +23,46 @@ type ProgressData = {
   created_at: string
 }
 
+type InsightData = {
+  insight: string
+  week_start: string
+  cached: boolean
+  scores?: {
+    grammar: number
+    pronunciation: number
+    vocabulary: number
+    fluency: number
+  }
+  deltas?: {
+    grammar: number
+    pronunciation: number
+    vocabulary: number
+    fluency: number
+  }
+}
+
+type HistoricalInsight = {
+  week_start: string
+  insight_text: string
+  created_at: string
+}
+
 export default function ProgressPage() {
   const supabase = createClient()
   const router = useRouter()
   const [data, setData] = useState<ProgressData[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [insight, setInsight] = useState<InsightData | null>(null)
+  const [insightLoading, setInsightLoading] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [historicalInsights, setHistoricalInsights] = useState<HistoricalInsight[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   useEffect(() => {
     loadProgressData()
+    loadInsights()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadProgressData = async () => {
@@ -77,6 +108,49 @@ export default function ProgressPage() {
       setLoading(false)
     }
   }
+
+  const loadInsights = async () => {
+    setInsightLoading(true)
+    try {
+      const response = await fetch('/api/insights')
+      if (response.ok) {
+        const data = await response.json()
+        setInsight(data)
+      } else {
+        console.error('Failed to load insights:', await response.text())
+      }
+    } catch (error) {
+      console.error('Error loading insights:', error)
+    } finally {
+      setInsightLoading(false)
+    }
+  }
+
+  const loadHistoricalInsights = async () => {
+    if (historicalInsights.length > 0) return // Already loaded
+
+    setHistoryLoading(true)
+    try {
+      const response = await fetch('/api/insights?history=true')
+      if (response.ok) {
+        const data = await response.json()
+        setHistoricalInsights(data.history || [])
+      } else {
+        console.error('Failed to load historical insights:', await response.text())
+      }
+    } catch (error) {
+      console.error('Error loading historical insights:', error)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (showHistory && historicalInsights.length === 0) {
+      loadHistoricalInsights()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistory])
 
   const calculateTrend = (key: keyof ProgressData) => {
     if (data.length < 2) return '—'
@@ -329,6 +403,113 @@ export default function ProgressPage() {
                     The AI remembers your patterns and adapts to help you improve faster.
                   </p>
                 </div>
+              </div>
+
+              {/* AI Insights Section */}
+              <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-md rounded-lg p-6 mt-6 border border-indigo-400/30">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-3xl">🧠</span>
+                  <h2 className="text-xl font-semibold text-white">AI Insights</h2>
+                  {insight?.cached && (
+                    <span className="text-xs text-indigo-300 bg-indigo-500/20 px-2 py-1 rounded">
+                      This week
+                    </span>
+                  )}
+                </div>
+
+                {insightLoading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <p className="text-gray-300 text-sm">Generating your personalized insight...</p>
+                  </div>
+                ) : insight ? (
+                  <div className="space-y-3">
+                    <p className="text-white text-base leading-relaxed">
+                      {insight.insight}
+                    </p>
+                    {insight.scores && (
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <span>📊</span>
+                        <span>
+                          Based on your latest performance across {Object.keys(insight.scores).length} skill areas
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">
+                    Complete an accent test to receive personalized AI coaching insights.
+                  </p>
+                )}
+
+                {!insightLoading && data.length > 0 && (
+                  <div className="flex items-center gap-4 mt-4">
+                    <button
+                      onClick={loadInsights}
+                      className="text-sm text-indigo-300 hover:text-indigo-200 transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Regenerate insight
+                    </button>
+
+                    <button
+                      onClick={() => setShowHistory(!showHistory)}
+                      className="text-sm text-purple-300 hover:text-purple-200 transition-colors underline"
+                    >
+                      {showHistory ? 'Hide Past Insights' : 'View Past Insights'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Historical Insights Timeline */}
+                {showHistory && (
+                  <div className="mt-6 border-t border-indigo-800/40 pt-4">
+                    <h3 className="text-sm font-medium text-indigo-300 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Past Insights
+                    </h3>
+
+                    {historyLoading ? (
+                      <div className="flex items-center gap-2 text-gray-400 text-sm">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-400"></div>
+                        <span>Loading history...</span>
+                      </div>
+                    ) : historicalInsights.length > 0 ? (
+                      <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        {historicalInsights.map((historical, index) => (
+                          <div
+                            key={historical.week_start}
+                            className="bg-indigo-500/5 border border-indigo-500/20 rounded-lg p-3"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-medium text-indigo-400">
+                                Week of {new Date(historical.week_start).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })}
+                              </span>
+                              {index === 0 && (
+                                <span className="text-xs text-gray-500">(Most Recent)</span>
+                              )}
+                            </div>
+                            <p className="text-gray-300 text-sm leading-relaxed">
+                              {historical.insight_text}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 text-sm">
+                        No historical insights yet. Keep practicing and insights will accumulate over time!
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
