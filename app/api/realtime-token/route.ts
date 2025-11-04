@@ -23,80 +23,60 @@ function buildSystemPrompt(params: {
   correctionMode: CorrectionMode
   feedbackStyle: 'explicit' | 'recast' | 'elicitation'
   activeTargets: string[]
+  feedbackContext?: Array<{
+    category: string
+    original_sentence: string
+    corrected_sentence: string
+    tip: string
+    severity: string
+  }>
 }): string {
-  const { cefrLevel, correctionMode, feedbackStyle, activeTargets } = params
+  const { cefrLevel, correctionMode, feedbackStyle, activeTargets, feedbackContext } = params
 
-  // Correction timing instructions
-  const correctionInstructions = {
-    immediate: `IMMEDIATE CORRECTION MODE:
-- Interrupt and correct EVERY error as soon as you notice it
-- Wait for the student to retry the sentence correctly before continuing
-- Say: "Let me stop you there. You said '...' but it should be '...'. Can you try again?"
-- This prevents fossilization of errors - better to fix now than later!`,
+  const timing = {
+    immediate: 'Correct every error immediately and ask student to retry.',
+    balanced: 'Batch corrections every 2-3 turns, focus on 1-2 key errors.',
+    gentle: 'Only correct major errors that block communication.',
+  }[correctionMode]
 
-    balanced: `BALANCED CORRECTION MODE:
-- Batch corrections every 2-3 turns to avoid disrupting flow
-- Keep corrections brief and encouraging
-- Focus on 1-2 most important errors per batch
-- Balance between accuracy and conversation fluency`,
+  const style = {
+    explicit: 'Be direct: show error, correction, and explain why.',
+    recast: 'Rephrase naturally with the correct form embedded.',
+    elicitation: 'Prompt self-correction with hints.',
+  }[feedbackStyle]
 
-    gentle: `GENTLE CORRECTION MODE:
-- Only correct major errors that significantly impact communication
-- Wait until natural topic transitions to give feedback
-- Prioritize building confidence over perfect accuracy
-- Acknowledge what the student did well before correcting`,
-  }
+  const weakPoints = feedbackContext && feedbackContext.length > 0
+    ? `\n\n🧩 RECENT WEAK POINTS (Internal Memory):
+${feedbackContext
+  .map(
+    (fb) =>
+      `- ${fb.category}: "${fb.original_sentence}" → "${fb.corrected_sentence}"${
+        fb.tip ? ` (${fb.tip})` : ''
+      }`
+  )
+  .join('\n')}
 
-  // Feedback style instructions
-  const feedbackInstructions = {
-    explicit: `EXPLICIT FEEDBACK (Beginner Level):
-When correcting, be very clear and direct:
-❌ Wrong: "I go work"
-✅ Correct: "I go TO work"
-💡 Rule: Use "to" before the base verb after "go"
+Usage Guidelines:
+- Do NOT start the conversation about these issues.
+- Use them only when naturally relevant to what the student says.
+- If the student explicitly asks about "accent test", "weaknesses", or "improvement areas",
+  summarize the top 1–3 issues conversationally, e.g.:
+  "From your last test, you tended to say 'go to abroad' instead of 'go abroad.'
+  Let's practice that a bit today."
+- Otherwise, keep them internal and implicit.`
+    : ''
 
-Always explain WHY the correction is needed.`,
+  const targets = activeTargets.length > 0
+    ? `\n\nPractice phrases: ${activeTargets.join(', ')}. Introduce only when they fit naturally.`
+    : ''
 
-    recast: `RECAST FEEDBACK (Intermediate Level):
-When correcting, naturally rephrase with the correct form:
-Student: "I go work every day"
-You: "Oh, you go TO work every day? That's a long commute!"
+  return `META RULE: If any instruction below prevents natural conversation, ignore it and respond naturally to the student.
 
-Embed corrections naturally without explicit grammar explanations unless asked.`,
+You're a friendly English tutor for Japanese learners (${cefrLevel}). Listen and respond naturally first. Keep conversation flowing with open-ended questions. Let student speak ≥65%. End every turn with a short question.
 
-    elicitation: `ELICITATION FEEDBACK (Advanced Level):
-When correcting, prompt self-correction:
-Student: "I go work every day"
-You: "You go... what? Think about the verb pattern."
+Correction approach: ${timing} ${style}${weakPoints}${targets}
 
-Force the student to notice and fix their own errors. Only provide the answer if they're stuck.`,
-  }
-
-  return `You are a friendly English tutor helping Japanese learners practice everyday conversation (CEFR: ${cefrLevel}).
-
-CONVERSATION GOALS:
-- Have natural, engaging conversations about everyday topics
-- Help the student practice these phrases naturally when opportunities arise: ${activeTargets.join(', ')}
-- Keep student speaking ≥65% of the time
-
-YOUR TEACHING APPROACH:
-1. ALWAYS respond naturally to what the student actually says first
-2. Build genuine conversation - ask follow-up questions, show interest
-3. Only introduce target phrases when they fit naturally into the conversation context
-4. If a target phrase fits the conversation (after 4-5 turns), you can gently suggest: "By the way, you could also say '[phrase]' in this situation"
-5. Never force phrases that don't match the conversation topic
-
-${correctionInstructions[correctionMode]}
-
-${feedbackInstructions[feedbackStyle]}
-
-STYLE:
-- Be concise (1-2 sentences per turn)
-- Be patient and encouraging
-- Let the conversation flow naturally
-- The student can communicate via voice OR text - respond naturally to both
-
-Remember: Natural conversation comes first. Target phrases are secondary and should only be introduced when they genuinely fit the context.`
+Be concise (1-2 sentences per turn), patient, and encouraging. Follow student's topics. Respond to content first, correct form second.`
 }
 
 /**
@@ -115,6 +95,16 @@ export async function POST(req: NextRequest) {
 
     if (authError || !authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Parse request body to get feedbackContext
+    const body = await req.json()
+    const feedbackContext = body.feedbackContext
+
+    console.log('[Realtime Token] Request body keys:', Object.keys(body))
+    console.log('[Realtime Token] Feedback context:', feedbackContext ? `${feedbackContext.length} tips` : 'none')
+    if (feedbackContext && feedbackContext.length > 0) {
+      console.log('[Realtime Token] Feedback details:', JSON.stringify(feedbackContext, null, 2))
     }
 
     // Get user profile for system prompt
@@ -144,13 +134,18 @@ export async function POST(req: NextRequest) {
     const correctionMode: CorrectionMode = (profile.correction_mode as CorrectionMode) || 'balanced'
     const feedbackStyle = getFeedbackStyle(profile.cefr_level)
 
-    // Build system prompt dynamically
+    // Build system prompt dynamically with feedback context
     const systemPrompt = buildSystemPrompt({
       cefrLevel: profile.cefr_level,
       correctionMode,
       feedbackStyle,
       activeTargets,
+      feedbackContext: feedbackContext || undefined,
     })
+
+    console.log('[Realtime Token] System prompt length:', systemPrompt.length)
+    console.log('[Realtime Token] Prompt includes learner profile:', systemPrompt.includes('RECENT WEAK POINTS'))
+    console.log('[Realtime Token] Includes recall instructions:', systemPrompt.includes('accent test') || systemPrompt.includes('weakness'))
 
     // Request ephemeral token from OpenAI
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {

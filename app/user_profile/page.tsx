@@ -94,12 +94,20 @@ export default function UserProfilePage() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-3xl font-bold text-white">My Profile</h1>
-            <a
-              href="/home"
-              className="text-white hover:text-blue-300 transition-colors"
-            >
-              ← Back to Home
-            </a>
+            <div className="flex gap-4">
+              <a
+                href="/progress"
+                className="text-white hover:text-green-300 transition-colors flex items-center gap-2"
+              >
+                📈 Progress Dashboard
+              </a>
+              <a
+                href="/home"
+                className="text-white hover:text-blue-300 transition-colors"
+              >
+                ← Back to Home
+              </a>
+            </div>
           </div>
 
           {/* Profile settings */}

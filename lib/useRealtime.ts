@@ -30,6 +30,13 @@ type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | '
 type RealtimeConfig = {
   userId: string
   sessionId: string
+  feedbackContext?: Array<{
+    category: string
+    original_sentence: string
+    corrected_sentence: string
+    tip: string
+    severity: string
+  }>
 }
 
 export function useRealtime() {
@@ -237,7 +244,7 @@ export function useRealtime() {
             return
           }
 
-          analyser.getByteTimeDomainData(dataArray)
+          analyser.getByteTimeDomainData(dataArray as any)
 
           let sumSquares = 0
           for (let i = 0; i < dataArray.length; i++) {
@@ -452,10 +459,15 @@ export function useRealtime() {
 
       // 2. Create session via backend (get ephemeral token)
       console.log('[2/6] Creating session...')
+      console.log('[Realtime] Sending feedback context length:', config.feedbackContext?.length || 0)
       const response = await fetch('/api/realtime-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify({
+          userId: config.userId,
+          sessionId: config.sessionId,
+          feedbackContext: config.feedbackContext,
+        }),
       })
 
       if (!response.ok) {
