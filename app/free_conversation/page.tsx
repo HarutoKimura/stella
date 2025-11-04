@@ -206,10 +206,16 @@ function FreeConversationContent() {
       )
 
       // Start realtime connection with gentle mode and accent test feedback if available
+      console.log('[Frontend] Preparing realtime token request', {
+        userId,
+        sessionId: session.id,
+        feedbackContextLength: accentTestFeedback?.length || 0,
+      })
+
       await start({
         userId,
         sessionId: session.id,
-        feedbackContext: accentTestFeedback || undefined,
+        feedbackContext: accentTestFeedback || [],
       })
     } catch (error) {
       console.error('Failed to start session:', error)
@@ -419,6 +425,41 @@ function FreeConversationContent() {
             <SpotlightCard className="mb-4 !border-red-500/50" spotlightColor="rgba(239, 68, 68, 0.2)">
               <div className="text-red-300 text-sm">
                 {error}
+              </div>
+            </SpotlightCard>
+          )}
+
+          {/* Session Memory Display - Personalized Context */}
+          {accentTestFeedback && accentTestFeedback.length > 0 && (
+            <SpotlightCard className="mb-4 !border-blue-400/30" spotlightColor="rgba(59, 130, 246, 0.2)">
+              <div className="p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">🎯</span>
+                  <h3 className="font-semibold text-blue-300">Personalized Session</h3>
+                </div>
+                <p className="text-sm text-gray-300 mb-2">
+                  This session is customized using your recent accent test ({new Date().toLocaleDateString()}).
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs text-gray-400">Focus areas:</span>
+                  {accentTestFeedback.map((fb, idx) => {
+                    const severityColors: Record<string, string> = {
+                      high: 'bg-red-500/20 text-red-300 border-red-400/30',
+                      medium: 'bg-amber-500/20 text-amber-300 border-amber-400/30',
+                      low: 'bg-blue-500/20 text-blue-300 border-blue-400/30',
+                    }
+                    const severityColor = severityColors[fb.severity] || 'bg-gray-500/20 text-gray-300 border-gray-400/30'
+
+                    return (
+                      <span
+                        key={idx}
+                        className={`text-xs px-2 py-1 rounded border ${severityColor}`}
+                      >
+                        {fb.category} ({fb.severity})
+                      </span>
+                    )
+                  })}
+                </div>
               </div>
             </SpotlightCard>
           )}

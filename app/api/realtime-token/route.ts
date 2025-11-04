@@ -33,96 +33,50 @@ function buildSystemPrompt(params: {
 }): string {
   const { cefrLevel, correctionMode, feedbackStyle, activeTargets, feedbackContext } = params
 
-  // Correction timing instructions
-  const correctionInstructions = {
-    immediate: `IMMEDIATE CORRECTION MODE:
-- Interrupt and correct EVERY error as soon as you notice it
-- Wait for the student to retry the sentence correctly before continuing
-- Say: "Let me stop you there. You said '...' but it should be '...'. Can you try again?"
-- This prevents fossilization of errors - better to fix now than later!`,
+  const timing = {
+    immediate: 'Correct every error immediately and ask student to retry.',
+    balanced: 'Batch corrections every 2-3 turns, focus on 1-2 key errors.',
+    gentle: 'Only correct major errors that block communication.',
+  }[correctionMode]
 
-    balanced: `BALANCED CORRECTION MODE:
-- Batch corrections every 2-3 turns to avoid disrupting flow
-- Keep corrections brief and encouraging
-- Focus on 1-2 most important errors per batch
-- Balance between accuracy and conversation fluency`,
+  const style = {
+    explicit: 'Be direct: show error, correction, and explain why.',
+    recast: 'Rephrase naturally with the correct form embedded.',
+    elicitation: 'Prompt self-correction with hints.',
+  }[feedbackStyle]
 
-    gentle: `GENTLE CORRECTION MODE:
-- Only correct major errors that significantly impact communication
-- Wait until natural topic transitions to give feedback
-- Prioritize building confidence over perfect accuracy
-- Acknowledge what the student did well before correcting`,
-  }
+  const weakPoints = feedbackContext && feedbackContext.length > 0
+    ? `\n\n🧩 RECENT WEAK POINTS (Internal Memory):
+${feedbackContext
+  .map(
+    (fb) =>
+      `- ${fb.category}: "${fb.original_sentence}" → "${fb.corrected_sentence}"${
+        fb.tip ? ` (${fb.tip})` : ''
+      }`
+  )
+  .join('\n')}
 
-  // Feedback style instructions
-  const feedbackInstructions = {
-    explicit: `EXPLICIT FEEDBACK (Beginner Level):
-When correcting, be very clear and direct:
-❌ Wrong: "I go work"
-✅ Correct: "I go TO work"
-💡 Rule: Use "to" before the base verb after "go"
-
-Always explain WHY the correction is needed.`,
-
-    recast: `RECAST FEEDBACK (Intermediate Level):
-When correcting, naturally rephrase with the correct form:
-Student: "I go work every day"
-You: "Oh, you go TO work every day? That's a long commute!"
-
-Embed corrections naturally without explicit grammar explanations unless asked.`,
-
-    elicitation: `ELICITATION FEEDBACK (Advanced Level):
-When correcting, prompt self-correction:
-Student: "I go work every day"
-You: "You go... what? Think about the verb pattern."
-
-Force the student to notice and fix their own errors. Only provide the answer if they're stuck.`,
-  }
-
-  // Build accent test context section if available
-  const accentTestContext = feedbackContext && feedbackContext.length > 0
-    ? `\n\n📊 ACCENT TEST CONTEXT (From Recent Assessment):
-The student just took an accent test. Here are specific issues to work on:
-
-${feedbackContext.map((fb, idx) => `${idx + 1}. [${fb.severity.toUpperCase()} PRIORITY - ${fb.category}]
-   ❌ They said: "${fb.original_sentence}"
-   ✅ Should be: "${fb.corrected_sentence}"
-   💡 Tip: ${fb.tip}
-`).join('\n')}
-
-IMPORTANT: When you notice the student making these mistakes again:
-- Gently point it out: "I notice you said '${feedbackContext[0].original_sentence}'. Remember from your test? Try '${feedbackContext[0].corrected_sentence}' instead."
-- If they ask about their weaknesses, refer to these specific patterns
-- Prioritize HIGH severity issues over LOW severity ones
-- Track whether they're improving on these specific corrections`
+Usage Guidelines:
+- Do NOT start the conversation about these issues.
+- Use them only when naturally relevant to what the student says.
+- If the student explicitly asks about "accent test", "weaknesses", or "improvement areas",
+  summarize the top 1–3 issues conversationally, e.g.:
+  "From your last test, you tended to say 'go to abroad' instead of 'go abroad.'
+  Let's practice that a bit today."
+- Otherwise, keep them internal and implicit.`
     : ''
 
-  return `You are a friendly English tutor helping Japanese learners practice everyday conversation (CEFR: ${cefrLevel}).
+  const targets = activeTargets.length > 0
+    ? `\n\nPractice phrases: ${activeTargets.join(', ')}. Introduce only when they fit naturally.`
+    : ''
 
-CONVERSATION GOALS:
-- Have natural, engaging conversations about everyday topics
-- Help the student practice these phrases naturally when opportunities arise: ${activeTargets.join(', ')}
-- Keep student speaking ≥65% of the time
+  return `META RULE: If any instruction below prevents natural conversation, ignore it and respond naturally to the student.
 
-YOUR TEACHING APPROACH:
-1. ALWAYS respond naturally to what the student actually says first
-2. Build genuine conversation - ask follow-up questions, show interest
-3. Only introduce target phrases when they fit naturally into the conversation context
-4. If a target phrase fits the conversation (after 4-5 turns), you can gently suggest: "By the way, you could also say '[phrase]' in this situation"
-5. Never force phrases that don't match the conversation topic
+You're a friendly English tutor for Japanese learners (${cefrLevel}). Listen and respond naturally first. Keep conversation flowing with open-ended questions. Let student speak ≥65%. End every turn with a short question.
 
-${correctionInstructions[correctionMode]}
+Correction approach: ${timing} ${style}${weakPoints}${targets}
 
-${feedbackInstructions[feedbackStyle]}
-${accentTestContext}
-
-STYLE:
-- Be concise (1-2 sentences per turn)
-- Be patient and encouraging
-- Let the conversation flow naturally
-- The student can communicate via voice OR text - respond naturally to both
-
-Remember: Natural conversation comes first. Target phrases are secondary and should only be introduced when they genuinely fit the context.`
+Be concise (1-2 sentences per turn), patient, and encouraging. Follow student's topics. Respond to content first, correct form second.`
 }
 
 /**
@@ -190,7 +144,8 @@ export async function POST(req: NextRequest) {
     })
 
     console.log('[Realtime Token] System prompt length:', systemPrompt.length)
-    console.log('[Realtime Token] Prompt includes accent test context:', systemPrompt.includes('ACCENT TEST CONTEXT'))
+    console.log('[Realtime Token] Prompt includes learner profile:', systemPrompt.includes('RECENT WEAK POINTS'))
+    console.log('[Realtime Token] Includes recall instructions:', systemPrompt.includes('accent test') || systemPrompt.includes('weakness'))
 
     // Request ephemeral token from OpenAI
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
@@ -200,7 +155,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-realtime-mini-2025-10-06',
+        model: 'gpt-realtime-2025-08-28',
         voice: 'alloy',
         instructions: systemPrompt,
         modalities: ['text', 'audio'],
@@ -221,7 +176,7 @@ export async function POST(req: NextRequest) {
       session: data,
       token: data.client_secret.value,
       expires_at: data.client_secret.expires_at,
-      model: data.model || 'gpt-realtime-mini-2025-10-06',
+      model: data.model || 'gpt-realtime-2025-08-28',
       prompt: systemPrompt,
       activeTargets,
     })
