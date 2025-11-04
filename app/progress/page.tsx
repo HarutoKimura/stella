@@ -2,6 +2,7 @@
 
 import { OrbBG } from '@/components/OrbBG'
 import { NextSteps } from '@/components/NextSteps'
+import { CoachSession } from '@/components/CoachSession'
 import { createClient } from '@/lib/supabaseClient'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -48,12 +49,32 @@ type HistoricalInsight = {
   created_at: string
 }
 
+// Helper function to determine focus areas from scores
+function getFocusAreasFromScores(scores: {
+  grammar: number
+  pronunciation: number
+  vocabulary: number
+  fluency: number
+}): string[] {
+  // Find the two lowest scores to use as focus areas
+  const scoreEntries = Object.entries(scores).map(([key, value]) => ({
+    area: key.charAt(0).toUpperCase() + key.slice(1),
+    score: value,
+  }))
+
+  scoreEntries.sort((a, b) => a.score - b.score)
+
+  // Return the two lowest scoring areas
+  return scoreEntries.slice(0, 2).map(entry => entry.area)
+}
+
 export default function ProgressPage() {
   const supabase = createClient()
   const router = useRouter()
   const [data, setData] = useState<ProgressData[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [userLevel, setUserLevel] = useState<string>('B1')
   const [insight, setInsight] = useState<InsightData | null>(null)
   const [insightLoading, setInsightLoading] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -77,10 +98,10 @@ export default function ProgressPage() {
         return
       }
 
-      // Get user profile to get the internal user_id
+      // Get user profile to get the internal user_id and CEFR level
       const { data: profile } = await supabase
         .from('users')
-        .select('id')
+        .select('id, cefr_level')
         .eq('auth_user_id', authUser.id)
         .single()
 
@@ -90,6 +111,7 @@ export default function ProgressPage() {
       }
 
       setUserId(profile.id)
+      setUserLevel(profile.cefr_level || 'B1')
 
       // Fetch progress data
       const { data: progressData, error } = await supabase
@@ -517,6 +539,44 @@ export default function ProgressPage() {
                   insightText={insight?.insight}
                   weekStart={insight?.week_start}
                 />
+
+                {/* AI Coach Session - DEBUG */}
+                <div className="mt-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                  <p className="text-yellow-200 text-xs mb-2">
+                    🔍 DEBUG: Insight exists: {insight ? 'Yes' : 'No'} |
+                    Has scores: {insight?.scores ? 'Yes' : 'No'} |
+                    User level: {userLevel}
+                  </p>
+                </div>
+
+                {/* AI Coach Session */}
+                {insight && (
+                  <CoachSession
+                    focusAreas={
+                      insight.scores
+                        ? getFocusAreasFromScores(insight.scores)
+                        : ['Grammar', 'Pronunciation'] // Default focus areas when scores not available
+                    }
+                    level={userLevel}
+                    insightText={insight?.insight}
+                    theme="Weekly Progress Practice"
+                  />
+                )}
+
+                {/* Fallback if no insight */}
+                {!insight && data.length > 0 && (
+                  <div className="mt-6 bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                    <p className="text-orange-200 text-sm">
+                      ⚠️ No insights available yet. Complete an accent test to generate insights and unlock AI Practice Sessions!
+                    </p>
+                    <a
+                      href="/accent-test"
+                      className="inline-block mt-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+                    >
+                      Take Accent Test
+                    </a>
+                  </div>
+                )}
               </div>
             </>
           )}
