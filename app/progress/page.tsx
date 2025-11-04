@@ -1,6 +1,7 @@
 'use client'
 
 import { OrbBG } from '@/components/OrbBG'
+import { NextSteps } from '@/components/NextSteps'
 import { createClient } from '@/lib/supabaseClient'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -510,6 +511,12 @@ export default function ProgressPage() {
                     )}
                   </div>
                 )}
+
+                {/* Next Steps Section */}
+                <NextSteps
+                  insightText={insight?.insight}
+                  weekStart={insight?.week_start}
+                />
               </div>
             </>
           )}
