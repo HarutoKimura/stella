@@ -464,6 +464,19 @@ Return ONLY a valid JSON object with this exact structure:
         // Don't fail the whole request if feedback tips fail
       } else {
         console.log('[Accent Test API] Successfully saved', feedbackTips.length, 'feedback tips')
+
+        // STEP 3.6: Update user_progress table for dashboard
+        try {
+          const { error: progressError } = await supabase.rpc('update_user_progress')
+          if (progressError) {
+            console.error('[Accent Test API] Failed to update progress:', progressError)
+          } else {
+            console.log('[Accent Test API] Progress dashboard updated successfully')
+          }
+        } catch (progressUpdateError) {
+          console.error('[Accent Test API] Error updating progress:', progressUpdateError)
+          // Don't fail the request if progress update fails
+        }
       }
     }
 

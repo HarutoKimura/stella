@@ -55,7 +55,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full mb-16">
           <a
             href="/accent-test"
             className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-md rounded-lg p-6 border border-blue-400/30 hover:border-blue-400/50 transition-all cursor-pointer"
@@ -79,13 +79,24 @@ export default function HomePage() {
           </a>
 
           <a
+            href="/progress"
+            className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-md rounded-lg p-6 border border-green-400/30 hover:border-green-400/50 transition-all cursor-pointer"
+          >
+            <div className="text-4xl mb-3">📈</div>
+            <h3 className="text-white text-xl font-bold mb-2">Progress Dashboard</h3>
+            <p className="text-gray-300 text-sm">
+              Track your weekly improvement trends
+            </p>
+          </a>
+
+          <a
             href="/user_profile"
             className="bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20 hover:bg-white/20 transition-colors cursor-pointer"
           >
             <div className="text-4xl mb-3">📊</div>
-            <h3 className="text-white text-xl font-bold mb-2">My Progress</h3>
+            <h3 className="text-white text-xl font-bold mb-2">My Profile</h3>
             <p className="text-gray-300 text-sm">
-              View your learning statistics
+              View statistics and settings
             </p>
           </a>
         </div>

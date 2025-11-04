@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-realtime-2025-08-28',
+        model: 'gpt-realtime-mini-2025-10-06',
         voice: 'alloy',
         instructions: systemPrompt,
         modalities: ['text', 'audio'],
@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
       session: data,
       token: data.client_secret.value,
       expires_at: data.client_secret.expires_at,
-      model: data.model || 'gpt-realtime-2025-08-28',
+      model: data.model || 'gpt-realtime-mini-2025-10-06',
       prompt: systemPrompt,
       activeTargets,
     })
