@@ -540,15 +540,6 @@ export default function ProgressPage() {
                   weekStart={insight?.week_start}
                 />
 
-                {/* AI Coach Session - DEBUG */}
-                <div className="mt-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                  <p className="text-yellow-200 text-xs mb-2">
-                    🔍 DEBUG: Insight exists: {insight ? 'Yes' : 'No'} |
-                    Has scores: {insight?.scores ? 'Yes' : 'No'} |
-                    User level: {userLevel}
-                  </p>
-                </div>
-
                 {/* AI Coach Session */}
                 {insight && (
                   <CoachSession

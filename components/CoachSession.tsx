@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { CoachTurn } from '@/types/coach'
+import { ConversationSession } from './ConversationSession'
 
 type CoachSessionProps = {
   focusAreas: string[]
@@ -16,6 +17,7 @@ export function CoachSession({ focusAreas, level, weekId, insightText, theme }: 
   const [loading, setLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [currentTurn, setCurrentTurn] = useState(0)
+  const [showConversation, setShowConversation] = useState(false)
 
   const startSession = async () => {
     setLoading(true)
@@ -269,13 +271,38 @@ export function CoachSession({ focusAreas, level, weekId, insightText, theme }: 
             </button>
           </div>
 
-          {currentTurn === dialogue.length - 1 && (
+          {currentTurn === dialogue.length - 1 && !showConversation && (
             <div className="mt-4 pt-4 border-t border-indigo-700/20">
-              <p className="text-xs text-gray-400 text-center">
-                Great job! You've completed this practice session. Start a new session to continue improving!
+              <p className="text-xs text-gray-400 text-center mb-4">
+                Great job! You've completed this practice session.
               </p>
+              <div className="flex flex-col items-center gap-3">
+                <button
+                  onClick={() => setShowConversation(true)}
+                  className="inline-flex items-center gap-2 text-sm px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold transition-all shadow-lg"
+                >
+                  <span className="text-lg">🎙️</span>
+                  Try in Live Conversation
+                </button>
+                <p className="text-xs text-gray-500 text-center max-w-md">
+                  Apply what you learned in a spontaneous conversation with the AI coach!
+                </p>
+              </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Live Conversation Mode */}
+      {showConversation && (
+        <div className="mt-6">
+          <ConversationSession
+            focusAreas={focusAreas}
+            level={level}
+            weekId={weekId || getCurrentWeekId()}
+            insightSummary={insightText}
+            onClose={() => setShowConversation(false)}
+          />
         </div>
       )}
     </div>

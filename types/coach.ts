@@ -36,3 +36,54 @@ export interface StartSessionResponse {
 export interface CoachDialogueResponse {
   dialogue: CoachTurn[]
 }
+
+/**
+ * Types for Realtime Conversation Mode
+ */
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  text: string
+  timestamp?: string
+}
+
+export interface ConversationSession {
+  id: string
+  user_id: string
+  week_id: number
+  focus_areas: string[]
+  transcript: ConversationMessage[]
+  feedback?: string
+  avg_score?: number
+  created_at: string
+}
+
+export interface StartConversationRequest {
+  focusAreas: string[]
+  level: string
+  insightSummary?: string
+  weekId: number
+}
+
+export interface SaveConversationRequest {
+  weekId: number
+  focusAreas: string[]
+  transcript: ConversationMessage[]
+  insightSummary?: string
+}
+
+export interface SaveConversationResponse {
+  sessionId: string
+  feedback: string
+}
+
+export interface RealtimeMessageRequest {
+  input: string
+  focusAreas: string[]
+  level: string
+  messages: ConversationMessage[]
+}
+
+export interface RealtimeMessageResponse {
+  reply: string
+}
