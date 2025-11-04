@@ -459,10 +459,15 @@ export function useRealtime() {
 
       // 2. Create session via backend (get ephemeral token)
       console.log('[2/6] Creating session...')
+      console.log('[Realtime] Sending feedback context length:', config.feedbackContext?.length || 0)
       const response = await fetch('/api/realtime-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify({
+          userId: config.userId,
+          sessionId: config.sessionId,
+          feedbackContext: config.feedbackContext,
+        }),
       })
 
       if (!response.ok) {
