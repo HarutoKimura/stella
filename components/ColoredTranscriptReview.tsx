@@ -310,25 +310,6 @@ export function ColoredTranscriptReview({
             })}
           </div>
         </div>
-
-        {/* Tips */}
-        <div className="mt-6 bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-          <p className="text-purple-200 text-sm font-medium mb-2">💡 How to Use:</p>
-          <ul className="text-gray-300 text-sm space-y-1">
-            <li className="flex items-start gap-2">
-              <span className="text-purple-400 mt-0.5">•</span>
-              <span>Colored words show pronunciation accuracy - click any for detailed feedback</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-purple-400 mt-0.5">•</span>
-              <span>Listen to your pronunciation compared to a native speaker</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-purple-400 mt-0.5">•</span>
-              <span>Focus on red and orange words for the biggest improvement</span>
-            </li>
-          </ul>
-        </div>
       </SpotlightCard>
 
       {/* Word Detail Modal */}

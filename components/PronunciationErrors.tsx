@@ -364,65 +364,32 @@ export function PronunciationErrors({ words, sessionId }: PronunciationErrorsPro
                   🔊 Sound breakdown (IPA):
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {wordData.phonemes.map((phoneme, pIdx) => (
-                    <div
-                      key={pIdx}
-                      className={`px-2 py-1 rounded text-xs font-mono ${
-                        phoneme.accuracyScore >= 80
-                          ? 'bg-green-500/20 text-green-300 border border-green-500/30'
-                          : phoneme.accuracyScore >= 60
-                          ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                          : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                      }`}
-                    >
-                      /{phoneme.phoneme}/ {Math.round(phoneme.accuracyScore)}
-                    </div>
-                  ))}
+                  {wordData.phonemes.map((phoneme, pIdx) => {
+                    const hasScore = typeof phoneme.accuracyScore === 'number' && !isNaN(phoneme.accuracyScore)
+                    const score = hasScore ? phoneme.accuracyScore : 0
+
+                    return (
+                      <div
+                        key={pIdx}
+                        className={`px-2 py-1 rounded text-xs font-mono ${
+                          hasScore
+                            ? score >= 80
+                              ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                              : score >= 60
+                              ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                              : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                        }`}
+                      >
+                        /{phoneme.phoneme}/{hasScore ? ` ${Math.round(score)}` : ''}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
-
-            {/* Helpful tip based on error type */}
-            <div className="mt-3 bg-purple-500/10 border border-purple-500/20 rounded p-3">
-              <p className="text-purple-200 text-sm">
-                <span className="font-semibold">💡 Practice Tip: </span>
-                {wordData.errorType === 'Mispronunciation' &&
-                  `Listen to the native pronunciation above and compare it with yours. Focus on the sounds shown in red below.`}
-                {wordData.errorType === 'Omission' &&
-                  `Make sure to pronounce every word clearly. Try slowing down slightly.`}
-                {wordData.errorType === 'Insertion' &&
-                  `You added an extra word here. Focus on speaking more precisely.`}
-                {wordData.errorType === 'None' && wordData.accuracyScore && wordData.accuracyScore < 70 &&
-                  `Compare your pronunciation with the native speaker. Pay attention to the sounds with low scores.`}
-              </p>
-            </div>
           </div>
         ))}
-      </div>
-
-      {/* Overall advice */}
-      <div className="mt-6 bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-        <p className="text-purple-200 text-sm font-medium mb-2">
-          📚 How to Practice:
-        </p>
-        <ul className="text-gray-300 text-sm space-y-1">
-          <li className="flex items-start gap-2">
-            <span className="text-purple-400 mt-0.5">1.</span>
-            <span>Listen to your pronunciation and the native speaker side-by-side</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-400 mt-0.5">2.</span>
-            <span>Focus on the phoneme sounds (IPA symbols) that scored low</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-400 mt-0.5">3.</span>
-            <span>Practice slowly, mimicking the native pronunciation exactly</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-purple-400 mt-0.5">4.</span>
-            <span>Use these words in full sentences during your next conversation</span>
-          </li>
-        </ul>
       </div>
     </SpotlightCard>
   )

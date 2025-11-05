@@ -140,24 +140,6 @@ export function WordDetailModal({ wordDetail, onClose }: WordDetailModalProps) {
     return 'bg-red-500/10 border-red-500/30'
   }
 
-  const getPracticeTip = (wordDetail: WordDetail) => {
-    const { errorType, accuracyScore } = wordDetail
-
-    if (errorType === 'Mispronunciation' || (accuracyScore < 70 && errorType !== 'Omission' && errorType !== 'Insertion')) {
-      return "Listen carefully to the native pronunciation and try to mimic the exact sounds. Pay special attention to the phonemes highlighted in red or yellow below."
-    }
-    if (errorType === 'Omission') {
-      return "You skipped this word. Make sure to pronounce every word clearly. Try slowing down your speech slightly."
-    }
-    if (errorType === 'Insertion') {
-      return "You added an extra word here. Focus on speaking more precisely and only saying what you intend."
-    }
-    if (accuracyScore >= 85) {
-      return "Great pronunciation! Keep practicing to maintain this level of accuracy."
-    }
-    return "Compare your pronunciation with the native speaker. Focus on matching the sound patterns and rhythm."
-  }
-
   // Generate IPA notation from phonemes
   const getIPANotation = () => {
     if (!wordDetail.phonemes || wordDetail.phonemes.length === 0) {
@@ -289,36 +271,37 @@ export function WordDetailModal({ wordDetail, onClose }: WordDetailModalProps) {
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 mb-6">
               <p className="text-purple-200 text-sm font-medium mb-3">🔊 Sound Breakdown (IPA):</p>
               <div className="flex flex-wrap gap-2">
-                {wordDetail.phonemes.map((phoneme, idx) => (
-                  <div
-                    key={idx}
-                    className={`px-3 py-2 rounded-lg text-sm font-mono border ${
-                      phoneme.accuracyScore >= 85
-                        ? 'bg-green-500/20 text-green-300 border-green-500/40'
-                        : phoneme.accuracyScore >= 70
-                        ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
-                        : phoneme.accuracyScore >= 50
-                        ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
-                        : 'bg-red-500/20 text-red-300 border-red-500/40'
-                    }`}
-                  >
-                    <div className="text-center">
-                      <div className="font-bold">/{phoneme.phoneme}/</div>
-                      <div className="text-xs mt-1">{Math.round(phoneme.accuracyScore)}%</div>
+                {wordDetail.phonemes.map((phoneme, idx) => {
+                  const hasScore = typeof phoneme.accuracyScore === 'number' && !isNaN(phoneme.accuracyScore)
+                  const score = hasScore ? phoneme.accuracyScore : 0
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`px-3 py-2 rounded-lg text-sm font-mono border ${
+                        hasScore
+                          ? score >= 85
+                            ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                            : score >= 70
+                            ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                            : score >= 50
+                            ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+                            : 'bg-red-500/20 text-red-300 border-red-500/40'
+                          : 'bg-gray-500/20 text-gray-300 border-gray-500/40'
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="font-bold">/{phoneme.phoneme}/</div>
+                        {hasScore && (
+                          <div className="text-xs mt-1">{Math.round(score)}%</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
-
-          {/* Practice Tip */}
-          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-4">
-            <p className="text-indigo-200 text-sm font-medium mb-2">💡 Practice Tip:</p>
-            <p className="text-gray-300 text-sm leading-relaxed">
-              {getPracticeTip(wordDetail)}
-            </p>
-          </div>
 
           {/* Close Button */}
           <div className="mt-6 flex justify-center">
