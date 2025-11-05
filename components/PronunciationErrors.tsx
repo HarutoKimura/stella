@@ -32,6 +32,7 @@ export function PronunciationErrors({ words, sessionId }: PronunciationErrorsPro
   const [recognizedText, setRecognizedText] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const [isLoadingAudio, setIsLoadingAudio] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   console.log('[Pronunciation Errors] Component initialized with sessionId:', sessionId, 'words:', words?.length)
 
@@ -219,16 +220,26 @@ export function PronunciationErrors({ words, sessionId }: PronunciationErrorsPro
 
   return (
     <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(249, 115, 22, 0.2)">
-      <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-        <span>🎯</span>
-        <span>Pronunciation Feedback</span>
-        <span className="text-sm text-gray-400 font-normal">
-          ({problematicWords.length} word{problematicWords.length !== 1 ? 's' : ''} to improve)
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between hover:opacity-80 transition-opacity mb-4"
+      >
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <span>🎯</span>
+          <span>Pronunciation Feedback</span>
+          <span className="text-sm text-gray-400 font-normal">
+            ({problematicWords.length} word{problematicWords.length !== 1 ? 's' : ''} to improve)
+          </span>
+        </h2>
+        <span className="text-gray-400 text-sm">
+          {isExpanded ? '▲ Hide' : '▼ Show'}
         </span>
-      </h2>
+      </button>
 
-      {/* Show what Azure recognized */}
-      {recognizedText && (
+      {isExpanded && (
+        <>
+          {/* Show what Azure recognized */}
+          {recognizedText && (
         <div className="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <span className="text-blue-400 text-lg shrink-0">🎤</span>
@@ -391,6 +402,8 @@ export function PronunciationErrors({ words, sessionId }: PronunciationErrorsPro
           </div>
         ))}
       </div>
+        </>
+      )}
     </SpotlightCard>
   )
 }

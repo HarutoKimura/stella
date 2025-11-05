@@ -48,6 +48,7 @@ export function ColoredTranscriptReview({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedWord, setSelectedWord] = useState<any | null>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   useEffect(() => {
     if (sessionId) {
@@ -232,84 +233,94 @@ export function ColoredTranscriptReview({
   return (
     <>
       <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(139, 92, 246, 0.2)">
-        <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-between hover:opacity-80 transition-opacity mb-6"
+        >
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <span>📝</span>
             <span>Pronunciation Transcript</span>
+            <span className="text-sm text-gray-400 font-normal">
+              ({wordsWithScores.length} word{wordsWithScores.length !== 1 ? 's' : ''} assessed)
+            </span>
           </h2>
-          <div className="text-sm text-gray-400">
-            {wordsWithScores.length} word{wordsWithScores.length !== 1 ? 's' : ''} assessed
-          </div>
-        </div>
+          <span className="text-gray-400 text-sm">
+            {isExpanded ? '▲ Hide' : '▼ Show'}
+          </span>
+        </button>
 
-        {/* Legend */}
-        {wordsWithScores.length > 0 && (
-          <div className="mb-6 bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
-            <p className="text-gray-300 text-sm font-medium mb-3">
-              Color Guide - Click colored words for details:
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                <span className="text-green-400 text-sm">
-                  Excellent ({excellentWords})
-                </span>
+        {isExpanded && (
+          <>
+            {/* Legend */}
+            {wordsWithScores.length > 0 && (
+              <div className="mb-6 bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+                <p className="text-gray-300 text-sm font-medium mb-3">
+                  Color Guide - Click colored words for details:
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                    <span className="text-green-400 text-sm">
+                      Excellent ({excellentWords})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                    <span className="text-yellow-400 text-sm">
+                      Good ({goodWords})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-orange-400"></div>
+                    <span className="text-orange-400 text-sm">
+                      Fair ({fairWords})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                    <span className="text-red-400 text-sm">
+                      Needs Practice ({needsPracticeWords})
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                <span className="text-yellow-400 text-sm">
-                  Good ({goodWords})
-                </span>
+            )}
+
+            {/* What Azure Speech Recognition Heard - All Words Colored by Score */}
+            <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-6">
+              <div className="mb-3 flex items-center gap-2 text-sm text-blue-300">
+                <span className="text-lg">🎤</span>
+                <span className="font-medium">What Azure Speech Recognition heard:</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-400"></div>
-                <span className="text-orange-400 text-sm">
-                  Fair ({fairWords})
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                <span className="text-red-400 text-sm">
-                  Needs Practice ({needsPracticeWords})
-                </span>
+              <div className="text-lg leading-relaxed">
+                {transcriptWords.map((transcriptWord, idx) => {
+                  const { wordData } = transcriptWord
+                  if (!wordData) return null
+
+                  return (
+                    <span key={idx}>
+                      <button
+                        onClick={() => handleWordClick(transcriptWord)}
+                        className={`
+                          ${getWordColor(wordData.accuracyScore)}
+                          ${getWordBgClass(wordData.accuracyScore)}
+                          ${getWordUnderlineClass(wordData.accuracyScore)}
+                          underline decoration-2 underline-offset-4
+                          px-1 py-0.5 rounded transition-all cursor-pointer
+                          font-medium
+                        `}
+                        title={`${wordData.word}: ${Math.round(wordData.accuracyScore)}% accuracy - Click for details`}
+                      >
+                        {transcriptWord.text}
+                      </button>
+                      {idx < transcriptWords.length - 1 && ' '}
+                    </span>
+                  )
+                })}
               </div>
             </div>
-          </div>
+          </>
         )}
-
-        {/* What Azure Speech Recognition Heard - All Words Colored by Score */}
-        <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-6">
-          <div className="mb-3 flex items-center gap-2 text-sm text-blue-300">
-            <span className="text-lg">🎤</span>
-            <span className="font-medium">What Azure Speech Recognition heard:</span>
-          </div>
-          <div className="text-lg leading-relaxed">
-            {transcriptWords.map((transcriptWord, idx) => {
-              const { wordData } = transcriptWord
-              if (!wordData) return null
-
-              return (
-                <span key={idx}>
-                  <button
-                    onClick={() => handleWordClick(transcriptWord)}
-                    className={`
-                      ${getWordColor(wordData.accuracyScore)}
-                      ${getWordBgClass(wordData.accuracyScore)}
-                      ${getWordUnderlineClass(wordData.accuracyScore)}
-                      underline decoration-2 underline-offset-4
-                      px-1 py-0.5 rounded transition-all cursor-pointer
-                      font-medium
-                    `}
-                    title={`${wordData.word}: ${Math.round(wordData.accuracyScore)}% accuracy - Click for details`}
-                  >
-                    {transcriptWord.text}
-                  </button>
-                  {idx < transcriptWords.length - 1 && ' '}
-                </span>
-              )
-            })}
-          </div>
-        </div>
       </SpotlightCard>
 
       {/* Word Detail Modal */}
