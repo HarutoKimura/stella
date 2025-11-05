@@ -7,6 +7,7 @@ import { OrbBG } from '@/components/OrbBG'
 import SpotlightCard from '@/components/SpotlightCard'
 import { PronunciationScores } from '@/components/PronunciationScores'
 import { PronunciationErrors } from '@/components/PronunciationErrors'
+import { ColoredTranscriptReview } from '@/components/ColoredTranscriptReview'
 
 type TranscriptTurn = {
   role: 'user' | 'tutor'
@@ -262,6 +263,15 @@ export default function SessionReviewPage() {
 
           {/* Pronunciation Scores Section */}
           <PronunciationScores scores={pronunciationScores ?? undefined} />
+
+          {/* Colored Transcript Review - Interactive word-by-word pronunciation review */}
+          {pronunciationWords.length > 0 && (
+            <ColoredTranscriptReview
+              sessionId={sessionId}
+              words={pronunciationWords}
+              autoLoad={false}
+            />
+          )}
 
           {/* Pronunciation Feedback - Detailed Analysis with Audio Playback */}
           {pronunciationWords.length > 0 && (
