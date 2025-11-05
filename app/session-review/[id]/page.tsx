@@ -263,9 +263,9 @@ export default function SessionReviewPage() {
           {/* Pronunciation Scores Section */}
           <PronunciationScores scores={pronunciationScores ?? undefined} />
 
-          {/* Pronunciation Word-level Errors Section */}
+          {/* Pronunciation Feedback - Detailed Analysis with Audio Playback */}
           {pronunciationWords.length > 0 && (
-            <PronunciationErrors words={pronunciationWords} />
+            <PronunciationErrors words={pronunciationWords} sessionId={sessionId} />
           )}
 
           {/* Grammar Errors Section */}

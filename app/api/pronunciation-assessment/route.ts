@@ -60,6 +60,35 @@ export async function POST(req: NextRequest) {
     // Convert audio file to ArrayBuffer for Azure Speech SDK
     const arrayBuffer = await audio.arrayBuffer()
 
+    // Upload audio segment to Supabase Storage for later playback
+    let audioUrl: string | null = null
+    if (sessionId && authUser) {
+      try {
+        const timestamp = Date.now()
+        const fileName = `user-segments/${authUser.id}/${sessionId}/${timestamp}.wav`
+
+        const { error: uploadError } = await supabase
+          .storage
+          .from('pronunciation-audio')
+          .upload(fileName, audio, {
+            contentType: 'audio/wav',
+            upsert: false
+          })
+
+        if (uploadError) {
+          console.error('[Pronunciation API] Failed to upload audio segment:', uploadError)
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('pronunciation-audio')
+            .getPublicUrl(fileName)
+          audioUrl = publicUrl
+          console.log('[Pronunciation API] Audio segment uploaded:', audioUrl)
+        }
+      } catch (uploadErr) {
+        console.error('[Pronunciation API] Audio upload exception:', uploadErr)
+      }
+    }
+
     // Create speech configuration
     const speechConfig = sdk.SpeechConfig.fromSubscription(apiKey, region)
     speechConfig.speechRecognitionLanguage = 'en-US'
@@ -139,11 +168,14 @@ export async function POST(req: NextRequest) {
         prosodyScore: details.NBest?.[0]?.PronunciationAssessment?.ProsodyScore,
       }
 
-      // Extract detailed word-level results
+      // Extract detailed word-level results with audio URL and timing
       const words = details.NBest?.[0]?.Words?.map((word: any) => ({
         word: word.Word,
         accuracyScore: word.PronunciationAssessment?.AccuracyScore,
         errorType: word.PronunciationAssessment?.ErrorType,
+        offset: word.Offset, // Start time in 100-nanosecond units
+        duration: word.Duration, // Duration in 100-nanosecond units
+        audioUrl: audioUrl, // Link to the full segment audio
         phonemes: word.Phonemes?.map((p: any) => ({
           phoneme: p.Phoneme,
           accuracyScore: p.AccuracyScore,

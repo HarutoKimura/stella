@@ -17,6 +17,7 @@ import { FloatingTopicContainer } from '@/components/FloatingTopicContainer'
 import { TopicCardData } from '@/components/FloatingTopicCard'
 import { detectConversationStruggle, generateFloatingTopicCards } from '@/lib/topicSuggestions'
 import { assessPronunciation, usePronunciationStore } from '@/lib/pronunciationStore'
+import { triggerPronunciationReview } from '@/lib/pronunciationReview'
 
 function FreeConversationContent() {
   const [input, setInput] = useState('')
@@ -321,13 +322,32 @@ function FreeConversationContent() {
         const pronunciationResult = await assessPronunciation(currentSessionId)
         if (pronunciationResult) {
           console.log('[Pronunciation Assessment] Complete:', pronunciationResult.averageScores)
+
+          // Trigger background pronunciation review using the assessment results
+          // This extracts problem words from the detailed results
+          console.log('[Stop Session] Triggering pronunciation review extraction...')
+          triggerPronunciationReview(currentSessionId).catch(err => {
+            console.error('[Pronunciation Review] Background processing failed:', err)
+          })
         } else {
-          console.log('[Pronunciation Assessment] No audio segments to assess')
+          console.log('[Pronunciation Assessment] No audio segments to assess - skipping pronunciation review')
         }
       } catch (error) {
         console.error('[Pronunciation Assessment] Failed:', error)
         // Continue anyway - don't block the user
       }
+
+      // Also try to extract from existing session data (fallback)
+      console.log('[Stop Session] Also triggering extraction from session data as fallback...')
+      fetch('/api/pronunciation-review/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: currentSessionId }),
+      }).then(res => res.json()).then(data => {
+        console.log('[Stop Session] Extraction result:', data)
+      }).catch(err => {
+        console.error('[Stop Session] Extraction failed:', err)
+      })
 
       // Clear session from store
       useSessionStore.getState().endSession()

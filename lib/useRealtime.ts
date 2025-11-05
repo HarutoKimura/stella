@@ -112,13 +112,19 @@ export function useRealtime() {
 
         const text = typeof data.text === 'string' ? data.text.trim() : ''
 
+        console.log('[Transcription] Result:', { hasText: !!text, isActive: isActiveRef.current, textLength: text.length })
+
         if (text && isActiveRef.current) {
           addTurn('user', text)
           addUserMessage(text)
           lastUserMessageRef.current = text
 
           // Save audio segment for pronunciation assessment
+          console.log('[Transcription] Saving audio segment, blob size:', blob.size)
           addAudioSegment(blob, text)
+          console.log('[Transcription] Audio segment saved successfully')
+        } else {
+          console.warn('[Transcription] Skipped audio segment:', { text: text.substring(0, 50), isActive: isActiveRef.current })
         }
       } catch (err) {
         // Only log if session is still active
