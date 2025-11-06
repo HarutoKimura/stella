@@ -7,6 +7,7 @@ import { OrbBG } from '@/components/OrbBG'
 import SpotlightCard from '@/components/SpotlightCard'
 import { PronunciationScores } from '@/components/PronunciationScores'
 import { PronunciationErrors } from '@/components/PronunciationErrors'
+import { ClarityFocusCard } from '@/components/ClarityFocusCard'
 
 type TranscriptTurn = {
   role: 'user' | 'tutor'
@@ -74,6 +75,13 @@ export default function SessionReviewPage() {
     completenessScore?: number
   } | null>(null)
   const [pronunciationWords, setPronunciationWords] = useState<PronunciationWord[]>([])
+  const [clarityFocusWords, setClarityFocusWords] = useState<Array<{
+    word: string
+    accuracy_score: number
+    segment_index: number | null
+    phonemes?: any
+  }>>([])
+
 
   useEffect(() => {
     loadSession()
@@ -143,6 +151,19 @@ export default function SessionReviewPage() {
       if (pronunciationAssessment?.words) {
         console.log('[Session Review] Found pronunciation words:', pronunciationAssessment.words.length)
         setPronunciationWords(pronunciationAssessment.words)
+      }
+
+      // Load clarity focus words
+      const { data: clarityData } = await supabase
+        .from('clarity_focus')
+        .select('word, accuracy_score, segment_index, phonemes')
+        .eq('session_id', sessionId)
+        .eq('user_id', profile.id)
+        .order('accuracy_score', { ascending: true })
+
+      if (clarityData && clarityData.length > 0) {
+        console.log('[Session Review] Found clarity focus words:', clarityData.length)
+        setClarityFocusWords(clarityData)
       }
 
       setLoading(false)
@@ -262,6 +283,11 @@ export default function SessionReviewPage() {
 
           {/* Pronunciation Scores Section */}
           <PronunciationScores scores={pronunciationScores ?? undefined} />
+
+          {/* Clarity Focus - Bottom 3-5 Words */}
+          {clarityFocusWords.length > 0 && (
+            <ClarityFocusCard words={clarityFocusWords} className="mb-6" />
+          )}
 
           {/* Pronunciation Word-level Errors Section */}
           {pronunciationWords.length > 0 && (
