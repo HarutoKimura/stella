@@ -130,29 +130,6 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
           </div>
         ))}
       </div>
-
-      {/* Practice tips */}
-      <div className="mt-6 bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
-        <p className="text-blue-200 text-sm font-medium mb-2">💪 Practice Tips:</p>
-        <ul className="text-gray-300 text-sm space-y-1">
-          <li className="flex items-start gap-2">
-            <span className="text-blue-400 mt-0.5">•</span>
-            <span>Record yourself saying these words and compare with native speakers</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-blue-400 mt-0.5">•</span>
-            <span>Break words into syllables and practice each part slowly</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-blue-400 mt-0.5">•</span>
-            <span>Use a dictionary with audio pronunciations for reference</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-blue-400 mt-0.5">•</span>
-            <span>Practice these words in full sentences, not just in isolation</span>
-          </li>
-        </ul>
-      </div>
     </SpotlightCard>
   )
 }
