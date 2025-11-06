@@ -171,39 +171,6 @@ export function PronunciationScores({ scores }: PronunciationScoresProps) {
           </div>
         )}
       </div>
-
-      {/* Helpful Tips */}
-      <div className="mt-6 bg-blue-500/5 border border-blue-500/20 rounded-lg p-4">
-        <p className="text-blue-200 text-sm font-medium mb-2">💡 Tips to Improve:</p>
-        <ul className="text-gray-300 text-sm space-y-1">
-          {scores.accuracyScore !== undefined && scores.accuracyScore < 70 && (
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-0.5">•</span>
-              <span>Listen to native speakers and practice mimicking their pronunciation</span>
-            </li>
-          )}
-          {scores.fluencyScore !== undefined && scores.fluencyScore < 70 && (
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-0.5">•</span>
-              <span>Practice speaking at a natural pace with appropriate pauses</span>
-            </li>
-          )}
-          {scores.prosodyScore !== undefined && scores.prosodyScore < 70 && (
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-0.5">•</span>
-              <span>Focus on stress patterns and natural rhythm in sentences</span>
-            </li>
-          )}
-          {(!scores.accuracyScore || scores.accuracyScore >= 70) &&
-           (!scores.fluencyScore || scores.fluencyScore >= 70) &&
-           (!scores.prosodyScore || scores.prosodyScore >= 70) && (
-            <li className="flex items-start gap-2">
-              <span className="text-green-400 mt-0.5">✓</span>
-              <span>Great work! Keep practicing to maintain your pronunciation skills</span>
-            </li>
-          )}
-        </ul>
-      </div>
     </SpotlightCard>
   )
 }

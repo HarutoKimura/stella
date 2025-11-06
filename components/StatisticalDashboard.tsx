@@ -515,46 +515,6 @@ export function StatisticalDashboard() {
               <ClarityFocusCard words={clarityFocusWords} />
             </div>
           )}
-
-          {/* Tips Section */}
-          <div className="mt-6 bg-orange-500/5 border border-orange-500/20 rounded-lg p-4">
-            <p className="text-orange-200 text-sm font-medium mb-2">💡 Tips to Improve:</p>
-            <ul className="text-gray-300 text-sm space-y-1">
-              {pronunciationScores.accuracy_score && pronunciationScores.accuracy_score < 70 && (
-                <li className="flex items-start gap-2">
-                  <span className="text-orange-400 mt-0.5">•</span>
-                  <span>Listen to native speakers and practice mimicking their pronunciation</span>
-                </li>
-              )}
-              {pronunciationScores.fluency_score && pronunciationScores.fluency_score < 70 && (
-                <li className="flex items-start gap-2">
-                  <span className="text-orange-400 mt-0.5">•</span>
-                  <span>Practice speaking in longer phrases without pausing mid-sentence</span>
-                </li>
-              )}
-              {pronunciationScores.prosody_score && pronunciationScores.prosody_score < 70 && (
-                <li className="flex items-start gap-2">
-                  <span className="text-orange-400 mt-0.5">•</span>
-                  <span>Focus on stress patterns and natural rhythm in sentences</span>
-                </li>
-              )}
-              {pronunciationScores.completeness_score && pronunciationScores.completeness_score < 70 && (
-                <li className="flex items-start gap-2">
-                  <span className="text-orange-400 mt-0.5">•</span>
-                  <span>Try to speak in complete sentences and finish your thoughts</span>
-                </li>
-              )}
-              {(!pronunciationScores.accuracy_score || pronunciationScores.accuracy_score >= 70) &&
-               (!pronunciationScores.fluency_score || pronunciationScores.fluency_score >= 70) &&
-               (!pronunciationScores.prosody_score || pronunciationScores.prosody_score >= 70) &&
-               (!pronunciationScores.completeness_score || pronunciationScores.completeness_score >= 70) && (
-                <li className="flex items-start gap-2">
-                  <span className="text-green-400 mt-0.5">✓</span>
-                  <span>Great work! Keep practicing to maintain your pronunciation skills</span>
-                </li>
-              )}
-            </ul>
-          </div>
         </SpotlightCard>
       )}
 
