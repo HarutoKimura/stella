@@ -104,18 +104,26 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
                   Show phoneme breakdown
                 </summary>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {wordData.phonemes.map((phoneme: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="text-xs px-2 py-1 rounded bg-gray-700/50 border border-gray-600"
-                      title={`Accuracy: ${Math.round(phoneme.accuracyScore)}%`}
-                    >
-                      <span className="text-gray-300">{phoneme.phoneme}</span>
-                      <span className={`ml-1 ${getAccuracyColor(phoneme.accuracyScore)}`}>
-                        {Math.round(phoneme.accuracyScore)}%
-                      </span>
-                    </div>
-                  ))}
+                  {wordData.phonemes.map((phoneme: any, idx: number) => {
+                    const hasValidAccuracy = phoneme.accuracyScore !== undefined &&
+                                            phoneme.accuracyScore !== null &&
+                                            !isNaN(phoneme.accuracyScore)
+
+                    return (
+                      <div
+                        key={idx}
+                        className="text-xs px-2 py-1 rounded bg-gray-700/50 border border-gray-600"
+                        title={hasValidAccuracy ? `Accuracy: ${Math.round(phoneme.accuracyScore)}%` : 'Phoneme'}
+                      >
+                        <span className="text-gray-300">{phoneme.phoneme}</span>
+                        {hasValidAccuracy && (
+                          <span className={`ml-1 ${getAccuracyColor(phoneme.accuracyScore)}`}>
+                            {Math.round(phoneme.accuracyScore)}%
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </details>
             )}
