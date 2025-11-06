@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabaseClient'
 import { OrbBG } from '@/components/OrbBG'
 import SpotlightCard from '@/components/SpotlightCard'
 import { PronunciationScores } from '@/components/PronunciationScores'
-import { PronunciationErrors } from '@/components/PronunciationErrors'
 import { ClarityFocusCard } from '@/components/ClarityFocusCard'
 
 type TranscriptTurn = {
@@ -25,16 +24,6 @@ type Correction = {
   issue_type?: string
 }
 
-type PronunciationWord = {
-  word: string
-  accuracyScore: number
-  errorType: 'None' | 'Mispronunciation' | 'Omission' | 'Insertion'
-  phonemes?: Array<{
-    phoneme: string
-    accuracyScore: number
-  }>
-}
-
 type SessionData = {
   id: string
   user_id: string
@@ -47,11 +36,6 @@ type SessionData = {
     corrections?: Correction[]
     usedTargets?: string[]
     missedTargets?: string[]
-    pronunciation_assessment?: {
-      scores: any
-      words: PronunciationWord[]
-      timestamp: string
-    }
   }
 }
 
@@ -74,7 +58,6 @@ export default function SessionReviewPage() {
     prosodyScore?: number
     completenessScore?: number
   } | null>(null)
-  const [pronunciationWords, setPronunciationWords] = useState<PronunciationWord[]>([])
   const [clarityFocusWords, setClarityFocusWords] = useState<Array<{
     word: string
     accuracy_score: number
@@ -144,13 +127,6 @@ export default function SessionReviewPage() {
           prosodyScore: fluencyData.prosody_score,
           completenessScore: fluencyData.completeness_score,
         })
-      }
-
-      // Extract pronunciation word-level errors from session summary
-      const pronunciationAssessment = (sessionData as SessionData).summary?.pronunciation_assessment
-      if (pronunciationAssessment?.words) {
-        console.log('[Session Review] Found pronunciation words:', pronunciationAssessment.words.length)
-        setPronunciationWords(pronunciationAssessment.words)
       }
 
       // Load clarity focus words
@@ -287,11 +263,6 @@ export default function SessionReviewPage() {
           {/* Clarity Focus - Bottom 3-5 Words */}
           {clarityFocusWords.length > 0 && (
             <ClarityFocusCard words={clarityFocusWords} className="mb-6" />
-          )}
-
-          {/* Pronunciation Word-level Errors Section */}
-          {pronunciationWords.length > 0 && (
-            <PronunciationErrors words={pronunciationWords} />
           )}
 
           {/* Grammar Errors Section */}

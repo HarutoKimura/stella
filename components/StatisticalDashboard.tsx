@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabaseClient'
 import SpotlightCard from '@/components/SpotlightCard'
-import { PronunciationErrors } from '@/components/PronunciationErrors'
+import { ClarityFocusCard } from '@/components/ClarityFocusCard'
 import { DbProgressMetric, DbWeeklyProgress, DbCefrTrajectory } from '@/lib/schema'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
@@ -24,16 +24,6 @@ type Correction = {
   severity?: string
   reason?: string
   issue_type?: string
-}
-
-type PronunciationWord = {
-  word: string
-  accuracyScore: number
-  errorType: 'None' | 'Mispronunciation' | 'Omission' | 'Insertion'
-  phonemes?: Array<{
-    phoneme: string
-    accuracyScore: number
-  }>
 }
 
 export function StatisticalDashboard() {
@@ -60,7 +50,12 @@ export function StatisticalDashboard() {
     session_id: string
     pronunciation_score: number
   }>>([])
-  const [pronunciationWords, setPronunciationWords] = useState<PronunciationWord[]>([])
+  const [clarityFocusWords, setClarityFocusWords] = useState<Array<{
+    word: string
+    accuracy_score: number
+    segment_index: number | null
+    phonemes?: any
+  }>>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -125,11 +120,19 @@ export function StatisticalDashboard() {
       const missedTargets = latestSession?.summary?.missedTargets || []
       setLatestTargets({ used: usedTargets, missed: missedTargets })
 
-      // Extract pronunciation word-level errors from latest session
-      const pronunciationAssessment = latestSession?.summary?.pronunciation_assessment
-      if (pronunciationAssessment?.words) {
-        console.log('[Dashboard] Found pronunciation words:', pronunciationAssessment.words.length)
-        setPronunciationWords(pronunciationAssessment.words)
+      // Load clarity focus words from latest session
+      if (latestSession) {
+        const { data: clarityData } = await supabase
+          .from('clarity_focus')
+          .select('word, accuracy_score, segment_index, phonemes')
+          .eq('session_id', latestSession.id)
+          .eq('user_id', profile.id)
+          .order('accuracy_score', { ascending: true })
+
+        if (clarityData && clarityData.length > 0) {
+          console.log('[Dashboard] Found clarity focus words:', clarityData.length)
+          setClarityFocusWords(clarityData)
+        }
       }
 
       // Get latest fluency snapshot
@@ -506,10 +509,10 @@ export function StatisticalDashboard() {
             )}
           </div>
 
-          {/* Word-level Pronunciation Errors */}
-          {pronunciationWords.length > 0 && (
+          {/* Clarity Focus - Bottom Words */}
+          {clarityFocusWords.length > 0 && (
             <div className="mt-6">
-              <PronunciationErrors words={pronunciationWords} />
+              <ClarityFocusCard words={clarityFocusWords} />
             </div>
           )}
 
