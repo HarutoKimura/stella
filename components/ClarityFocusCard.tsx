@@ -81,6 +81,34 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
                   </span>
                 </div>
 
+                {/* Phoneme details if available - right under the word */}
+                {wordData.phonemes && wordData.phonemes.length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex flex-wrap gap-2">
+                      {wordData.phonemes.map((phoneme: any, idx: number) => {
+                        const hasValidAccuracy = phoneme.accuracyScore !== undefined &&
+                                                phoneme.accuracyScore !== null &&
+                                                !isNaN(phoneme.accuracyScore)
+
+                        return (
+                          <div
+                            key={idx}
+                            className="text-xs px-2 py-1 rounded bg-gray-700/50 border border-gray-600"
+                            title={hasValidAccuracy ? `Accuracy: ${Math.round(phoneme.accuracyScore)}%` : 'Phoneme'}
+                          >
+                            <span className="text-gray-300">{phoneme.phoneme}</span>
+                            {hasValidAccuracy && (
+                              <span className={`ml-1 ${getAccuracyColor(phoneme.accuracyScore)}`}>
+                                {Math.round(phoneme.accuracyScore)}%
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Progress bar */}
                 <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
                   <div
@@ -96,37 +124,6 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
                 </p>
               </div>
             </div>
-
-            {/* Phoneme details if available */}
-            {wordData.phonemes && wordData.phonemes.length > 0 && (
-              <details className="mt-3">
-                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
-                  Show phoneme breakdown
-                </summary>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {wordData.phonemes.map((phoneme: any, idx: number) => {
-                    const hasValidAccuracy = phoneme.accuracyScore !== undefined &&
-                                            phoneme.accuracyScore !== null &&
-                                            !isNaN(phoneme.accuracyScore)
-
-                    return (
-                      <div
-                        key={idx}
-                        className="text-xs px-2 py-1 rounded bg-gray-700/50 border border-gray-600"
-                        title={hasValidAccuracy ? `Accuracy: ${Math.round(phoneme.accuracyScore)}%` : 'Phoneme'}
-                      >
-                        <span className="text-gray-300">{phoneme.phoneme}</span>
-                        {hasValidAccuracy && (
-                          <span className={`ml-1 ${getAccuracyColor(phoneme.accuracyScore)}`}>
-                            {Math.round(phoneme.accuracyScore)}%
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </details>
-            )}
           </div>
         ))}
       </div>
