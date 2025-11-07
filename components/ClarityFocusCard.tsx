@@ -74,7 +74,7 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
 
                 {/* Phoneme details if available - right under the word */}
                 {wordData.phonemes && wordData.phonemes.length > 0 && (
-                  <div className="mb-3">
+                  <div>
                     <div className="flex flex-wrap gap-1.5">
                       {wordData.phonemes.map((phoneme: any, idx: number) => {
                         const hasValidAccuracy = phoneme.accuracyScore !== undefined &&
@@ -86,14 +86,6 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
                     </div>
                   </div>
                 )}
-
-                {/* Progress bar */}
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className={`bg-gradient-to-r ${getProgressBarColor(wordData.accuracy_score)} h-2 rounded-full transition-all`}
-                    style={{ width: `${wordData.accuracy_score}%` }}
-                  />
-                </div>
               </div>
             </div>
           </div>
