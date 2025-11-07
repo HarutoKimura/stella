@@ -2,6 +2,8 @@ import { useState } from 'react'
 import SpotlightCard from '../SpotlightCard'
 import { GrammarCorrectionCard, type GrammarCorrectionData } from '../GrammarCorrectionCard'
 import { ClarityFocusCard } from '../ClarityFocusCard'
+import { Tooltip } from '../Tooltip'
+import { diffSentences, getOriginalDiffParts, getCorrectedDiffParts } from '@/lib/diffSentences'
 
 type Correction = {
   type: 'grammar' | 'vocab' | 'pron'
@@ -182,16 +184,93 @@ export function CorrectionComparison({ corrections, clarityFocusWords = [] }: Pr
               );
             }
 
-            // Use existing card style for vocab and pronunciation
+            // Use inline diff for vocab, simple card for pronunciation
+            if (correction.type === 'vocab') {
+              // Generate diff parts for vocabulary
+              const diffs = diffSentences(correction.example, correction.correction);
+              const originalParts = getOriginalDiffParts(diffs);
+              const correctedParts = getCorrectedDiffParts(diffs);
+
+              return (
+                <SpotlightCard
+                  key={index}
+                  className="!p-0 overflow-hidden"
+                  spotlightColor="rgba(168, 85, 247, 0.15)"
+                >
+                  {/* Header */}
+                  <div className="px-6 py-4 bg-gray-800/50 border-b border-gray-700 flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">📚</span>
+                      <h3 className="text-purple-300 font-bold text-sm">Vocabulary</h3>
+                    </div>
+                  </div>
+
+                  {/* Main Content */}
+                  <div className="p-6 space-y-4">
+                    {/* Original with errors highlighted */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">❌</span>
+                        <h4 className="text-red-300 font-semibold text-sm">You said:</h4>
+                      </div>
+                      <div className="bg-red-900/10 border border-red-500/30 rounded-lg p-4">
+                        <p className="text-white text-base leading-relaxed">
+                          {originalParts.map((part, idx) => {
+                            if (part.type === 'removed') {
+                              return (
+                                <Tooltip
+                                  key={idx}
+                                  content="This needs correction"
+                                >
+                                  <span className="text-red-400 font-medium cursor-help">
+                                    {part.value}
+                                  </span>
+                                </Tooltip>
+                              );
+                            }
+                            return <span key={idx}>{part.value}</span>;
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Corrected with fixes highlighted */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">✅</span>
+                        <h4 className="text-green-300 font-semibold text-sm">Corrected:</h4>
+                      </div>
+                      <div className="bg-green-900/10 border border-green-500/30 rounded-lg p-4">
+                        <p className="text-white text-base leading-relaxed">
+                          {correctedParts.map((part, idx) => {
+                            if (part.type === 'added') {
+                              return (
+                                <Tooltip
+                                  key={idx}
+                                  content="Correction applied"
+                                >
+                                  <span className="text-green-400 font-medium bg-green-500/10 px-1 rounded cursor-help">
+                                    {part.value}
+                                  </span>
+                                </Tooltip>
+                              );
+                            }
+                            return <span key={idx}>{part.value}</span>;
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </SpotlightCard>
+              );
+            }
+
+            // Pronunciation corrections - keep simple side-by-side format
             return (
               <SpotlightCard
                 key={index}
                 className="!p-0 overflow-hidden"
-                spotlightColor={
-                  correction.type === 'vocab'
-                    ? 'rgba(168, 85, 247, 0.2)'
-                    : 'rgba(34, 197, 94, 0.2)'
-                }
+                spotlightColor="rgba(34, 197, 94, 0.2)"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2">
                   {/* What you said (Error) */}
@@ -200,12 +279,8 @@ export function CorrectionComparison({ corrections, clarityFocusWords = [] }: Pr
                       <span className="text-2xl">❌</span>
                       <div>
                         <h3 className="text-red-300 font-bold text-sm">What You Said</h3>
-                        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold ${
-                          correction.type === 'vocab'
-                            ? 'bg-purple-500/20 text-purple-300'
-                            : 'bg-green-500/20 text-green-300'
-                        }`}>
-                          {correction.type === 'vocab' ? 'Vocabulary' : 'Pronunciation'}
+                        <span className="inline-block mt-1 px-2 py-0.5 rounded text-xs font-semibold bg-green-500/20 text-green-300">
+                          Pronunciation
                         </span>
                       </div>
                     </div>
@@ -227,28 +302,6 @@ export function CorrectionComparison({ corrections, clarityFocusWords = [] }: Pr
                       "{correction.correction}"
                     </p>
                   </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="px-6 py-3 bg-gray-800/50 border-t border-gray-700 flex items-center justify-between">
-                  <button
-                    className="px-3 py-1.5 bg-blue-500/20 text-blue-300 rounded text-xs font-semibold hover:bg-blue-500/30 transition-colors"
-                    onClick={() => {
-                      // TODO: Add to phrase notebook
-                      alert('Added to phrase notebook! (Feature coming soon)')
-                    }}
-                  >
-                    💾 Save to Notebook
-                  </button>
-                  <button
-                    className="px-3 py-1.5 bg-purple-500/20 text-purple-300 rounded text-xs font-semibold hover:bg-purple-500/30 transition-colors"
-                    onClick={() => {
-                      // TODO: Practice this phrase
-                      alert('Practice mode coming soon!')
-                    }}
-                  >
-                    🎯 Practice This
-                  </button>
                 </div>
               </SpotlightCard>
             );
