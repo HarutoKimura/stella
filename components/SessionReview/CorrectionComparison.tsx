@@ -209,7 +209,7 @@ export function CorrectionComparison({ corrections, clarityFocusWords = [] }: Pr
                         </span>
                       </div>
                     </div>
-                    <p className="text-white text-lg font-mono bg-red-900/20 p-3 rounded border border-red-500/30">
+                    <p className="text-white text-lg bg-red-900/20 p-3 rounded border border-red-500/30">
                       "{correction.example}"
                     </p>
                   </div>
@@ -223,7 +223,7 @@ export function CorrectionComparison({ corrections, clarityFocusWords = [] }: Pr
                         <span className="text-xs text-gray-400 mt-1">Correct Version</span>
                       </div>
                     </div>
-                    <p className="text-white text-lg font-mono bg-green-900/20 p-3 rounded border border-green-500/30">
+                    <p className="text-white text-lg bg-green-900/20 p-3 rounded border border-green-500/30">
                       "{correction.correction}"
                     </p>
                   </div>
