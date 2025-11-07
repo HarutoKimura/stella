@@ -37,19 +37,6 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
     return 'from-red-500 to-orange-500'
   }
 
-  // Helper function to get pronunciation tip based on accuracy
-  const getPronunciationTip = (word: string, score: number): string => {
-    if (score >= 80) {
-      return 'Good! Minor improvements possible'
-    } else if (score >= 60) {
-      return 'Practice this word more slowly'
-    } else if (score >= 40) {
-      return 'Focus on each sound separately'
-    } else {
-      return 'Listen to native speakers say this word'
-    }
-  }
-
   return (
     <SpotlightCard className={`!p-6 ${className}`} spotlightColor="rgba(249, 115, 22, 0.2)">
       <div className="mb-4">
@@ -110,18 +97,12 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
                 )}
 
                 {/* Progress bar */}
-                <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                <div className="w-full bg-gray-700 rounded-full h-2">
                   <div
                     className={`bg-gradient-to-r ${getProgressBarColor(wordData.accuracy_score)} h-2 rounded-full transition-all`}
                     style={{ width: `${wordData.accuracy_score}%` }}
                   />
                 </div>
-
-                {/* Pronunciation tip */}
-                <p className="text-sm text-orange-200 flex items-start gap-2">
-                  <span className="text-orange-400 flex-shrink-0">💡</span>
-                  <span>{getPronunciationTip(wordData.word, wordData.accuracy_score)}</span>
-                </p>
               </div>
             </div>
           </div>
