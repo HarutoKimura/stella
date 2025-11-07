@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import SpotlightCard from './SpotlightCard'
 
 type ClarityFocusWord = {
@@ -22,6 +23,9 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
   if (!words || words.length === 0) {
     return null
   }
+
+  // Debug: Log the phoneme data
+  console.log('[ClarityFocusCard] Words data:', JSON.stringify(words, null, 2))
 
   // Helper function to get color based on accuracy score
   const getAccuracyColor = (score: number): string => {
@@ -71,26 +75,13 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
                 {/* Phoneme details if available - right under the word */}
                 {wordData.phonemes && wordData.phonemes.length > 0 && (
                   <div className="mb-3">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {wordData.phonemes.map((phoneme: any, idx: number) => {
                         const hasValidAccuracy = phoneme.accuracyScore !== undefined &&
                                                 phoneme.accuracyScore !== null &&
                                                 !isNaN(phoneme.accuracyScore)
 
-                        return (
-                          <div
-                            key={idx}
-                            className="text-xs px-2 py-1 rounded bg-gray-700/50 border border-gray-600"
-                            title={hasValidAccuracy ? `Accuracy: ${Math.round(phoneme.accuracyScore)}%` : 'Phoneme'}
-                          >
-                            <span className="text-gray-300">{phoneme.phoneme}</span>
-                            {hasValidAccuracy && (
-                              <span className={`ml-1 ${getAccuracyColor(phoneme.accuracyScore)}`}>
-                                {Math.round(phoneme.accuracyScore)}%
-                              </span>
-                            )}
-                          </div>
-                        )
+                        return <PhonemeBadge key={idx} phoneme={phoneme.phoneme} accuracyScore={hasValidAccuracy ? phoneme.accuracyScore : null} getAccuracyColor={getAccuracyColor} />
                       })}
                     </div>
                   </div>
@@ -109,5 +100,34 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
         ))}
       </div>
     </SpotlightCard>
+  )
+}
+
+// Phoneme badge component with custom tooltip
+function PhonemeBadge({ phoneme, accuracyScore, getAccuracyColor }: { phoneme: string; accuracyScore: number | null; getAccuracyColor: (score: number) => string }) {
+  const [showTooltip, setShowTooltip] = useState(false)
+
+  return (
+    <span
+      className="relative inline-block"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <span
+        className={`text-base font-medium cursor-help ${
+          accuracyScore !== null ? getAccuracyColor(accuracyScore) : 'text-gray-300'
+        }`}
+      >
+        /{phoneme}/
+      </span>
+
+      {/* Custom Tooltip */}
+      {showTooltip && accuracyScore !== null && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-gray-700 text-white text-xs rounded whitespace-nowrap z-10">
+          {Math.round(accuracyScore)}%
+          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
+        </span>
+      )}
+    </span>
   )
 }

@@ -130,6 +130,9 @@ export async function POST(req: NextRequest) {
       )
       const details = JSON.parse(detailsJson)
 
+      // Debug: Log raw Azure response to see phoneme structure
+      console.log('[Pronunciation API] Raw Azure response:', JSON.stringify(details, null, 2))
+
       // Extract scores
       const scores = {
         accuracyScore: pronunciationResult.accuracyScore,
@@ -146,7 +149,7 @@ export async function POST(req: NextRequest) {
         errorType: word.PronunciationAssessment?.ErrorType,
         phonemes: word.Phonemes?.map((p: any) => ({
           phoneme: p.Phoneme,
-          accuracyScore: p.AccuracyScore,
+          accuracyScore: p.PronunciationAssessment?.AccuracyScore,
         })),
       })) || []
 

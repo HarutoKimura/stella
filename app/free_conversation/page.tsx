@@ -346,6 +346,8 @@ function FreeConversationContent() {
                   phonemes: word.phonemes || null,
                 }))
 
+                console.log('[Clarity Focus] Records to save:', JSON.stringify(clarityFocusRecords, null, 2))
+
                 const { error: clarityError } = await supabase
                   .from('clarity_focus')
                   .insert(clarityFocusRecords)
