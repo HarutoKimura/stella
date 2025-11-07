@@ -107,6 +107,19 @@ export function ClarityFocusCard({ words, className = '' }: ClarityFocusCardProp
 function PhonemeBadge({ phoneme, accuracyScore, getAccuracyColor }: { phoneme: string; accuracyScore: number | null; getAccuracyColor: (score: number) => string }) {
   const [showTooltip, setShowTooltip] = useState(false)
 
+  // Get background color for tooltip based on score
+  const getTooltipBgColor = (score: number): string => {
+    if (score >= 80) return 'bg-green-600 border-green-500'
+    if (score >= 60) return 'bg-yellow-600 border-yellow-500'
+    return 'bg-red-600 border-red-500'
+  }
+
+  const getTooltipArrowColor = (score: number): string => {
+    if (score >= 80) return 'border-t-green-600'
+    if (score >= 60) return 'border-t-yellow-600'
+    return 'border-t-red-600'
+  }
+
   return (
     <span
       className="relative inline-block"
@@ -114,7 +127,7 @@ function PhonemeBadge({ phoneme, accuracyScore, getAccuracyColor }: { phoneme: s
       onMouseLeave={() => setShowTooltip(false)}
     >
       <span
-        className={`text-base font-medium cursor-help ${
+        className={`text-base font-medium cursor-default ${
           accuracyScore !== null ? getAccuracyColor(accuracyScore) : 'text-gray-300'
         }`}
       >
@@ -123,9 +136,9 @@ function PhonemeBadge({ phoneme, accuracyScore, getAccuracyColor }: { phoneme: s
 
       {/* Custom Tooltip */}
       {showTooltip && accuracyScore !== null && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-gray-700 text-white text-xs rounded whitespace-nowrap z-10">
+        <span className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 border text-white text-xs font-bold rounded whitespace-nowrap z-10 ${getTooltipBgColor(accuracyScore)}`}>
           {Math.round(accuracyScore)}%
-          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></span>
+          <span className={`absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent ${getTooltipArrowColor(accuracyScore)}`}></span>
         </span>
       )}
     </span>
