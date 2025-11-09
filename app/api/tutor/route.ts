@@ -56,13 +56,26 @@ OUTPUT CONTRACT (MUST be strict JSON, no extra text):
 {
   "reply": "Tutor response (1–2 sentences, ask a genuine follow-up if appropriate)",
   "corrections": [
-    { "type": "grammar" | "vocab" | "pron", "example": "what learner said", "correction": "concise fix", "note": "≤ 15 words (optional)" }
+    {
+      "type": "grammar" | "vocab" | "pron",
+      "example": "the full sentence or phrase with sufficient context that the learner said (not just the error word)",
+      "correction": "the corrected full sentence or phrase with the same context",
+      "note": "≤ 15 words (optional)"
+    }
   ],
   "enforce": { "must_use_next": string | null },  // usually null in LIGHT/STANDARD unless learner explicitly asks for drills
   "metrics": { "fillers": number | 0, "pause_ms": number | 1200 },
   "usedTargets": string[],    // phrases the learner already used well (may be empty)
   "missedTargets": string[]   // optional gentle opportunities; keep short and relevant (may be empty)
 }
+
+IMPORTANT FOR CORRECTIONS:
+- For grammar errors (especially tense, verb forms): include enough context to show WHY the correction is needed
+  Example: If learner says "Yesterday I go to the store", don't just extract "go" → "went"
+  Instead extract: "Yesterday I go to the store" → "Yesterday I went to the store"
+- For vocabulary: include the surrounding phrase to show proper usage
+  Example: "the assessment result" → "the assessment results"
+- Keep both "example" and "correction" as complete, understandable sentences or meaningful phrases
 
 RULES
 - Keep reply short; avoid long lectures.

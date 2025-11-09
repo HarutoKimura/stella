@@ -13,9 +13,28 @@ export type TutorTurnIn = {
   mode: "gentle" | "turn" | "post";
 };
 
+// Enhanced grammar correction with detailed error information
+export type EnhancedGrammarCorrection = {
+  type: "grammar";
+  userSentence: string;
+  correctedSentence: string;
+  errorTypes: string[];  // e.g., ['article', 'verb-agreement', 'conjunction']
+  severity: "minor" | "major";
+  explanation: string;
+};
+
+// Basic correction format (legacy)
+export type BasicCorrection = {
+  type: "grammar" | "vocab" | "pron";
+  example: string;
+  correction: string;
+};
+
 export type TutorTurnOut = {
   reply: string;
-  corrections: { type: "grammar" | "vocab" | "pron"; example: string; correction: string }[];
+  corrections: BasicCorrection[];
+  // Optional: Use enhanced format for grammar corrections
+  enhancedCorrections?: EnhancedGrammarCorrection[];
   enforce?: { must_use_next?: string };
   metrics?: { fillers?: number; pause_ms?: number };
   usedTargets: string[];

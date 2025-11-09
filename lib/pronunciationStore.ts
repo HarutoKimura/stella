@@ -75,6 +75,12 @@ export async function assessPronunciation(sessionId: string) {
     const segmentsToAssess = segments // Assess ALL segments (not just first 5)
 
     const assessmentResults = []
+    const allWordScores: Array<{
+      word: string
+      accuracy: number
+      segmentIndex: number
+      phonemes?: Array<{ phoneme: string; accuracyScore: number }>
+    }> = []
 
     for (let i = 0; i < segmentsToAssess.length; i++) {
       const segment = segmentsToAssess[i]
@@ -112,6 +118,20 @@ export async function assessPronunciation(sessionId: string) {
               scores: result.scores,
               words: result.words,
             })
+
+            // Collect word-level scores for clarity focus
+            if (result.words && Array.isArray(result.words)) {
+              result.words.forEach((wordData: any) => {
+                if (wordData.word && wordData.accuracyScore !== undefined) {
+                  allWordScores.push({
+                    word: wordData.word.toLowerCase(),
+                    accuracy: wordData.accuracyScore,
+                    segmentIndex: i,
+                    phonemes: wordData.phonemes,
+                  })
+                }
+              })
+            }
           }
         } else {
           // Log the error details
@@ -147,6 +167,25 @@ export async function assessPronunciation(sessionId: string) {
       )
 
       const count = assessmentResults.length
+
+      // Extract bottom 3-5 words for clarity focus
+      // Filter for meaningful words (> 2 chars), remove duplicates (keep lowest accuracy)
+      const wordMap = new Map<string, typeof allWordScores[0]>()
+      allWordScores.forEach((wordScore) => {
+        if (wordScore.word.length > 2) {
+          const existing = wordMap.get(wordScore.word)
+          if (!existing || wordScore.accuracy < existing.accuracy) {
+            wordMap.set(wordScore.word, wordScore)
+          }
+        }
+      })
+
+      const clarityFocusWords = Array.from(wordMap.values())
+        .sort((a, b) => a.accuracy - b.accuracy)
+        .slice(0, 5)
+
+      console.log('[Pronunciation Assessment] Clarity focus words:', clarityFocusWords)
+
       return {
         averageScores: {
           accuracyScore: Math.round(avgScores.accuracyScore / count),
@@ -155,6 +194,7 @@ export async function assessPronunciation(sessionId: string) {
           prosodyScore: Math.round(avgScores.prosodyScore / count),
         },
         details: assessmentResults,
+        clarityFocusWords,
       }
     }
 

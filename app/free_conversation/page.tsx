@@ -321,6 +321,45 @@ function FreeConversationContent() {
         const pronunciationResult = await assessPronunciation(currentSessionId)
         if (pronunciationResult) {
           console.log('[Pronunciation Assessment] Complete:', pronunciationResult.averageScores)
+
+          // Save clarity focus words to database
+          if (pronunciationResult.clarityFocusWords && pronunciationResult.clarityFocusWords.length > 0) {
+            console.log('[Clarity Focus] Saving', pronunciationResult.clarityFocusWords.length, 'words')
+
+            // Get user profile for user_id
+            const { data: { user: authUser } } = await supabase.auth.getUser()
+            if (authUser) {
+              const { data: profile } = await supabase
+                .from('users')
+                .select('id')
+                .eq('auth_user_id', authUser.id)
+                .single()
+
+              if (profile) {
+                // Insert clarity focus words
+                const clarityFocusRecords = pronunciationResult.clarityFocusWords.map((word) => ({
+                  session_id: currentSessionId,
+                  user_id: profile.id,
+                  word: word.word,
+                  accuracy_score: word.accuracy,
+                  segment_index: word.segmentIndex,
+                  phonemes: word.phonemes || null,
+                }))
+
+                console.log('[Clarity Focus] Records to save:', JSON.stringify(clarityFocusRecords, null, 2))
+
+                const { error: clarityError } = await supabase
+                  .from('clarity_focus')
+                  .insert(clarityFocusRecords)
+
+                if (clarityError) {
+                  console.error('[Clarity Focus] Failed to save:', clarityError)
+                } else {
+                  console.log('[Clarity Focus] Successfully saved', clarityFocusRecords.length, 'words')
+                }
+              }
+            }
+          }
         } else {
           console.log('[Pronunciation Assessment] No audio segments to assess')
         }

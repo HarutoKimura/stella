@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabaseClient'
 import { OrbBG } from '@/components/OrbBG'
 import SpotlightCard from '@/components/SpotlightCard'
 import { PronunciationScores } from '@/components/PronunciationScores'
-import { PronunciationErrors } from '@/components/PronunciationErrors'
+import { ClarityFocusCard } from '@/components/ClarityFocusCard'
+import { CorrectionComparison } from '@/components/SessionReview/CorrectionComparison'
 
 type TranscriptTurn = {
   role: 'user' | 'tutor'
@@ -24,16 +25,6 @@ type Correction = {
   issue_type?: string
 }
 
-type PronunciationWord = {
-  word: string
-  accuracyScore: number
-  errorType: 'None' | 'Mispronunciation' | 'Omission' | 'Insertion'
-  phonemes?: Array<{
-    phoneme: string
-    accuracyScore: number
-  }>
-}
-
 type SessionData = {
   id: string
   user_id: string
@@ -46,11 +37,6 @@ type SessionData = {
     corrections?: Correction[]
     usedTargets?: string[]
     missedTargets?: string[]
-    pronunciation_assessment?: {
-      scores: any
-      words: PronunciationWord[]
-      timestamp: string
-    }
   }
 }
 
@@ -73,7 +59,13 @@ export default function SessionReviewPage() {
     prosodyScore?: number
     completenessScore?: number
   } | null>(null)
-  const [pronunciationWords, setPronunciationWords] = useState<PronunciationWord[]>([])
+  const [clarityFocusWords, setClarityFocusWords] = useState<Array<{
+    word: string
+    accuracy_score: number
+    segment_index: number | null
+    phonemes?: any
+  }>>([])
+
 
   useEffect(() => {
     loadSession()
@@ -138,11 +130,17 @@ export default function SessionReviewPage() {
         })
       }
 
-      // Extract pronunciation word-level errors from session summary
-      const pronunciationAssessment = (sessionData as SessionData).summary?.pronunciation_assessment
-      if (pronunciationAssessment?.words) {
-        console.log('[Session Review] Found pronunciation words:', pronunciationAssessment.words.length)
-        setPronunciationWords(pronunciationAssessment.words)
+      // Load clarity focus words
+      const { data: clarityData } = await supabase
+        .from('clarity_focus')
+        .select('word, accuracy_score, segment_index, phonemes')
+        .eq('session_id', sessionId)
+        .eq('user_id', profile.id)
+        .order('accuracy_score', { ascending: true })
+
+      if (clarityData && clarityData.length > 0) {
+        console.log('[Session Review] Found clarity focus words:', clarityData.length)
+        setClarityFocusWords(clarityData)
       }
 
       setLoading(false)
@@ -225,10 +223,6 @@ export default function SessionReviewPage() {
   const totalTurns = session.student_turns + session.tutor_turns
   const speakingPercentage = totalTurns > 0 ? Math.round((session.student_turns / totalTurns) * 100) : 0
 
-  // Separate grammar and vocabulary errors
-  const grammarErrors = corrections.filter(c => c.type === 'grammar')
-  const vocabIssues = corrections.filter(c => c.type === 'vocab')
-
   // Combine missed targets and wishlist
   const allPhrasesToPractice = [...missedTargets]
 
@@ -263,122 +257,14 @@ export default function SessionReviewPage() {
           {/* Pronunciation Scores Section */}
           <PronunciationScores scores={pronunciationScores ?? undefined} />
 
-          {/* Pronunciation Word-level Errors Section */}
-          {pronunciationWords.length > 0 && (
-            <PronunciationErrors words={pronunciationWords} />
-          )}
-
-          {/* Grammar Errors Section */}
-          {grammarErrors.length > 0 && (
-            <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(239, 68, 68, 0.2)">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <span>📝</span>
-                <span>Grammar Corrections</span>
-                <span className="text-sm text-gray-400 font-normal">({grammarErrors.length})</span>
-              </h2>
-              <div className="space-y-4">
-                {grammarErrors.map((error, idx) => (
-                  <div key={idx} className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="flex-shrink-0">
-                        <span className="text-red-400 text-lg">❌</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-red-200 text-sm mb-1 font-medium">You said:</p>
-                        <p className="text-white">&ldquo;{error.example}&rdquo;</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="flex-shrink-0">
-                        <span className="text-green-400 text-lg">✅</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-green-200 text-sm mb-1 font-medium">Better:</p>
-                        <p className="text-white font-semibold">&ldquo;{error.correction}&rdquo;</p>
-                      </div>
-                    </div>
-                    {error.error_type && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="px-2 py-1 bg-red-500/20 text-red-300 rounded">
-                          {error.error_type}
-                        </span>
-                        {error.severity && (
-                          <span className={`px-2 py-1 rounded ${
-                            error.severity === 'major'
-                              ? 'bg-orange-500/20 text-orange-300'
-                              : 'bg-yellow-500/20 text-yellow-300'
-                          }`}>
-                            {error.severity}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </SpotlightCard>
-          )}
-
-          {/* Vocabulary Issues Section */}
-          {vocabIssues.length > 0 && (
-            <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(168, 85, 247, 0.2)">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <span>📚</span>
-                <span>Vocabulary Suggestions</span>
-                <span className="text-sm text-gray-400 font-normal">({vocabIssues.length})</span>
-              </h2>
-              <div className="space-y-4">
-                {vocabIssues.map((issue, idx) => (
-                  <div key={idx} className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="flex-shrink-0">
-                        <span className="text-purple-400 text-lg">💬</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-purple-200 text-sm mb-1 font-medium">You said:</p>
-                        <p className="text-white">&ldquo;{issue.example}&rdquo;</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="flex-shrink-0">
-                        <span className="text-cyan-400 text-lg">✨</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-cyan-200 text-sm mb-1 font-medium">Try this instead:</p>
-                        <p className="text-white font-semibold">&ldquo;{issue.correction}&rdquo;</p>
-                      </div>
-                    </div>
-                    {issue.reason && (
-                      <div className="bg-cyan-500/10 border border-cyan-500/20 rounded p-2 text-sm text-cyan-200">
-                        💡 {issue.reason}
-                      </div>
-                    )}
-                    {issue.issue_type && (
-                      <div className="mt-2">
-                        <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
-                          {issue.issue_type}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </SpotlightCard>
-          )}
-
-          {/* No Errors - Encouragement */}
-          {grammarErrors.length === 0 && vocabIssues.length === 0 && (
-            <SpotlightCard className="!p-6 mb-6" spotlightColor="rgba(34, 197, 94, 0.2)">
-              <div className="text-center">
-                <div className="text-5xl mb-3">🎉</div>
-                <h2 className="text-xl font-bold text-green-300 mb-2">Excellent session!</h2>
-                <p className="text-gray-400 text-sm">
-                  {transcript.length > 0
-                    ? "Great job! No major errors detected. Keep up the good work!"
-                    : "Every conversation is a step forward. Keep practicing!"}
-                </p>
-              </div>
-            </SpotlightCard>
+          {/* Corrections Section - Using CorrectionComparison component with Clarity Focus */}
+          {(corrections.length > 0 || clarityFocusWords.length > 0) && (
+            <div className="mb-6">
+              <CorrectionComparison
+                corrections={corrections}
+                clarityFocusWords={clarityFocusWords}
+              />
+            </div>
           )}
 
           {/* Phrases to Try Next Time */}
