@@ -40,18 +40,10 @@ export function GrammarCorrectionExample() {
 
       <GrammarCorrectionCard
         correction={exampleCorrection}
-        onTryAgain={(sentence) => {
-          console.log('Try again:', sentence);
-          alert(`Practice mode!\n\nTry saying: "${sentence}"`);
-        }}
       />
 
       <GrammarCorrectionCard
         correction={anotherExample}
-        onTryAgain={(sentence) => {
-          console.log('Try again:', sentence);
-          alert(`Practice mode!\n\nTry saying: "${sentence}"`);
-        }}
       />
 
       <div className="mt-8 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
