@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
 import { SessionSummaryInSchema } from '@/lib/schema'
 import { calculateMetrics, estimateCefrLevel } from '@/lib/metricsCalculator'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,6 +19,17 @@ export async function POST(req: NextRequest) {
 
     if (authError || !authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limiting - moderate for API operations with expensive AI analysis
+    const identifier = getRateLimitIdentifier(req, authUser.id)
+    const { success } = await ratelimit.api.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
     }
 
     // Get user profile
@@ -64,9 +76,16 @@ export async function POST(req: NextRequest) {
       const protocol = host.includes('localhost') ? 'http' : 'https'
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
 
+      // Forward authentication cookies for server-to-server call
+      const cookieHeader = req.headers.get('cookie')
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (cookieHeader) {
+        headers['cookie'] = cookieHeader
+      }
+
       const analyzeResponse = await fetch(`${baseUrl}/api/analyze-transcript`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           transcript: input.transcript || [],
           userCefrLevel,

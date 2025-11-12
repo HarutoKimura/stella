@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { z } from 'zod'
 import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
+import { createServerSupabaseClient } from '@/lib/supabaseServer'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -17,8 +18,16 @@ const AnalyzeTranscriptInputSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limiting - strict for AI analysis
-    const identifier = getRateLimitIdentifier(req)
+    // Authentication check
+    const supabase = await createServerSupabaseClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limiting - strict for AI analysis (using authenticated user ID)
+    const identifier = getRateLimitIdentifier(req, user.id)
     const { success } = await ratelimit.ai.limit(identifier)
 
     if (!success) {
