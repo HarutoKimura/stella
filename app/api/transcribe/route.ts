@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 const TRANSCRIBE_URL = 'https://api.openai.com/v1/audio/transcriptions'
+const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB (OpenAI limit)
+const ALLOWED_AUDIO_TYPES = [
+  'audio/webm',
+  'audio/wav',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/m4a',
+  'audio/ogg',
+  'audio/flac',
+]
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,15 +34,59 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Rate limiting - moderate for file uploads
+    const identifier = getRateLimitIdentifier(req, authUser.id)
+    const { success } = await ratelimit.upload.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many upload requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+
     const formData = await req.formData()
     const audio = formData.get('audio')
 
+    // Validate file exists and is a File object
     if (!audio || !(audio instanceof File)) {
       return NextResponse.json(
         { error: 'Audio file is required' },
         { status: 400 }
       )
     }
+
+    // Validate file size
+    if (audio.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` },
+        { status: 413 }
+      )
+    }
+
+    // Validate file type (allow empty type and handle codec parameters)
+    if (audio.type) {
+      // Extract base MIME type (ignore codec parameters like ";codecs=opus")
+      const baseMimeType = audio.type.split(';')[0].trim()
+
+      if (!ALLOWED_AUDIO_TYPES.includes(baseMimeType)) {
+        console.warn('[Transcribe] Rejected audio type:', audio.type)
+        return NextResponse.json(
+          {
+            error: 'Invalid audio format. Supported formats: webm, wav, mp3, mp4, m4a, ogg, flac',
+            received: audio.type
+          },
+          { status: 415 }
+        )
+      }
+    }
+
+    // Log audio file details for debugging
+    console.log('[Transcribe] Processing audio:', {
+      type: audio.type || 'unknown',
+      size: audio.size,
+      name: audio.name
+    })
 
     const arrayBuffer = await audio.arrayBuffer()
     const audioType = audio.type || 'audio/webm'

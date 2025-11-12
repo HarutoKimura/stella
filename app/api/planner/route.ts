@@ -3,6 +3,7 @@ import { MicroPackSchema, PlannerInputSchema, DbTarget, DbError } from '@/lib/sc
 import { MicroPack } from '@/lib/aiContracts'
 import { getMixedPhrases, PHRASE_LIBRARY } from '@/lib/phraseLibrary'
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 /**
  * IMPROVED Planner API - Returns personalized micro-pack based on user's history
@@ -17,16 +18,27 @@ import { createServerSupabaseClient } from '@/lib/supabaseServer'
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const input = PlannerInputSchema.parse(body)
-
     const supabase = await createServerSupabaseClient()
 
-    // Get authenticated user
+    // Get authenticated user for rate limiting
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Rate limiting - strict for AI-powered planning
+    const identifier = getRateLimitIdentifier(req, user.id)
+    const { success } = await ratelimit.ai.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+
+    const body = await req.json()
+    const input = PlannerInputSchema.parse(body)
 
     // Get user's database profile
     const { data: userProfile, error: profileError } = await supabase

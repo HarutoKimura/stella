@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 import OpenAI from 'openai'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -43,6 +44,17 @@ export async function POST(req: NextRequest) {
 
     if (authError || !authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limiting - moderate for accent tests (includes Azure + OpenAI)
+    const identifier = getRateLimitIdentifier(req, authUser.id)
+    const { success } = await ratelimit.upload.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many accent test requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
     }
 
     // Get user profile

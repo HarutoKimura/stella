@@ -271,51 +271,7 @@ function FreeConversationContent() {
       const usedTargets = activeTargets.filter((t) => t.used).map((t) => t.phrase)
       const missedTargets = activeTargets.filter((t) => !t.used).map((t) => t.phrase)
 
-      // Call summarize API with full transcript and corrections
-      await fetch('/api/summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: currentSessionId,
-          usedTargets,
-          missedTargets,
-          corrections: currentCorrections,
-          transcript: currentTranscript,
-          metrics: {
-            wpm: 0,
-            filler_rate: 0,
-            avg_pause_ms: 0,
-          },
-        }),
-      })
-
-      // If this conversation came from a coach practice session, save the link
-      if (coachSessionContext) {
-        console.log('[Coach Session Context] Saving conversation session with link to practice')
-
-        // Convert transcript format to match ConversationMessage type
-        const conversationTranscript = currentTranscript.map((msg) => ({
-          role: msg.role as 'user' | 'assistant',
-          text: msg.text,
-          timestamp: new Date().toISOString(),
-        }))
-
-        await fetch('/api/session/live', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            weekId: coachSessionContext.weekId,
-            focusAreas: coachSessionContext.focusAreas,
-            transcript: conversationTranscript,
-            insightSummary: coachSessionContext.insightSummary,
-            coachSessionId: coachSessionContext.sessionId,
-          }),
-        })
-
-        console.log('[Coach Session Context] Conversation session saved with practice link')
-      }
-
-      // Assess pronunciation and wait for it to complete
+      // STEP 1: Assess pronunciation FIRST (before summarize) so scores are saved
       console.log('[Stop Session] Starting pronunciation assessment...')
       try {
         const pronunciationResult = await assessPronunciation(currentSessionId)
@@ -366,6 +322,51 @@ function FreeConversationContent() {
       } catch (error) {
         console.error('[Pronunciation Assessment] Failed:', error)
         // Continue anyway - don't block the user
+      }
+
+      // STEP 2: Now call summarize API (after pronunciation scores are saved)
+      console.log('[Stop Session] Calling summarize API with complete data...')
+      await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: currentSessionId,
+          usedTargets,
+          missedTargets,
+          corrections: currentCorrections,
+          transcript: currentTranscript,
+          metrics: {
+            wpm: 0,
+            filler_rate: 0,
+            avg_pause_ms: 0,
+          },
+        }),
+      })
+
+      // STEP 3: If this conversation came from a coach practice session, save the link
+      if (coachSessionContext) {
+        console.log('[Coach Session Context] Saving conversation session with link to practice')
+
+        // Convert transcript format to match ConversationMessage type
+        const conversationTranscript = currentTranscript.map((msg) => ({
+          role: msg.role as 'user' | 'assistant',
+          text: msg.text,
+          timestamp: new Date().toISOString(),
+        }))
+
+        await fetch('/api/session/live', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weekId: coachSessionContext.weekId,
+            focusAreas: coachSessionContext.focusAreas,
+            transcript: conversationTranscript,
+            insightSummary: coachSessionContext.insightSummary,
+            coachSessionId: coachSessionContext.sessionId,
+          }),
+        })
+
+        console.log('[Coach Session Context] Conversation session saved with practice link')
       }
 
       // Clear session from store

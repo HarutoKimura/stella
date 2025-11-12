@@ -64,7 +64,7 @@ export function PronunciationScores({ scores }: PronunciationScoresProps) {
       {/* Detailed Scores */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Accuracy Score */}
-        {scores.accuracyScore !== undefined && (
+        {scores.accuracyScore !== undefined && scores.accuracyScore !== null && (
           <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
             <div className="flex items-center justify-between mb-2">
               <div>
@@ -91,7 +91,7 @@ export function PronunciationScores({ scores }: PronunciationScoresProps) {
         )}
 
         {/* Fluency Score */}
-        {scores.fluencyScore !== undefined && (
+        {scores.fluencyScore !== undefined && scores.fluencyScore !== null && (
           <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
             <div className="flex items-center justify-between mb-2">
               <div>

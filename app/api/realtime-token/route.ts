@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
 import { CorrectionMode } from '@/lib/schema'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 /**
  * Get feedback style based on CEFR level
@@ -95,6 +96,17 @@ export async function POST(req: NextRequest) {
 
     if (authError || !authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limiting - very strict for token generation
+    const identifier = getRateLimitIdentifier(req, authUser.id)
+    const { success } = await ratelimit.token.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many token requests. Please wait before creating a new session.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
     }
 
     // Parse request body to get feedbackContext

@@ -91,7 +91,7 @@ export async function assessPronunciation(sessionId: string) {
 
         const formData = new FormData()
         formData.append('audio', wavBlob, 'speech.wav')
-        formData.append('referenceText', '') // Unscripted assessment
+        formData.append('referenceText', segment.text) // Use transcribed text as reference for full scoring
         formData.append('sessionId', sessionId)
 
         const response = await fetch('/api/pronunciation-assessment', {
