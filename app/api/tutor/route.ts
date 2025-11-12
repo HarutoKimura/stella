@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { TutorTurnInSchema, TutorTurnOutSchema } from '@/lib/schema'
 import type { TutorTurnOut } from '@/lib/aiContracts'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -9,6 +10,17 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting - strict for AI calls
+    const identifier = getRateLimitIdentifier(req)
+    const { success } = await ratelimit.ai.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+
     const body = await req.json()
     const input = TutorTurnInSchema.parse(body)
 

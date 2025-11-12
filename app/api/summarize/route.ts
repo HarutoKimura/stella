@@ -109,6 +109,35 @@ export async function POST(req: NextRequest) {
       console.warn('[Summarize] Falling back to tutor corrections')
     }
 
+    // Retrieve Azure pronunciation scores from session summary (if available)
+    let azurePronunciationScore: number | undefined
+    let azureAccuracyScore: number | undefined
+    let azureFluencyScore: number | undefined
+    let azureProsodyScore: number | undefined
+    let azureCompletenessScore: number | undefined
+
+    try {
+      const { data: sessionWithSummary } = await supabase
+        .from('sessions')
+        .select('summary')
+        .eq('id', input.sessionId)
+        .single()
+
+      if (sessionWithSummary?.summary?.pronunciation_assessment?.scores) {
+        const scores = sessionWithSummary.summary.pronunciation_assessment.scores
+        azurePronunciationScore = scores.pronunciationScore
+        azureAccuracyScore = scores.accuracyScore
+        azureFluencyScore = scores.fluencyScore
+        azureProsodyScore = scores.prosodyScore
+        azureCompletenessScore = scores.completenessScore
+        console.log('[Summarize] Using Azure pronunciation scores from session:', scores)
+      } else {
+        console.log('[Summarize] No Azure pronunciation scores found in session summary')
+      }
+    } catch (error) {
+      console.warn('[Summarize] Failed to retrieve pronunciation scores:', error)
+    }
+
     // Calculate comprehensive metrics using thorough analysis
     const metrics = calculateMetrics({
       transcript: input.transcript || [],
@@ -117,6 +146,7 @@ export async function POST(req: NextRequest) {
       missedTargets: input.missedTargets,
       sessionDurationMs,
       userCefrLevel,
+      azurePronunciationScore, // Pass real Azure score if available
     })
 
     // Update session summary with transcript and comprehensive analysis
@@ -193,7 +223,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Insert enhanced fluency snapshot
+    // Insert enhanced fluency snapshot with Azure scores
     console.log('[Summarize] Inserting fluency_snapshots for session:', input.sessionId, 'user:', userId)
     const { data: fluencyData, error: fluencyError } = await supabase.from('fluency_snapshots').insert({
       user_id: userId,
@@ -208,6 +238,11 @@ export async function POST(req: NextRequest) {
       pronunciation_score: metrics.pronunciation_score,
       turn_ratio: metrics.turn_ratio,
       confidence_score: metrics.confidence_score,
+      // Include detailed Azure pronunciation scores
+      accuracy_score: azureAccuracyScore,
+      fluency_score: azureFluencyScore,
+      prosody_score: azureProsodyScore,
+      completeness_score: azureCompletenessScore,
     }).select()
 
     if (fluencyError) {

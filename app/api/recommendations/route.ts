@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabaseServer'
 import OpenAI from 'openai'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -25,6 +26,17 @@ export async function GET(req: NextRequest) {
 
     if (authError || !authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limiting - lenient for read operations
+    const identifier = getRateLimitIdentifier(req, authUser.id)
+    const { success } = await ratelimit.read.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
     }
 
     // Get user profile
@@ -90,6 +102,17 @@ export async function POST(req: NextRequest) {
 
     if (authError || !authUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Rate limiting - strict for AI generation
+    const identifier = getRateLimitIdentifier(req, authUser.id)
+    const { success } = await ratelimit.ai.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
     }
 
     // Get user profile

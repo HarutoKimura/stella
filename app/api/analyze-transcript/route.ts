@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { z } from 'zod'
+import { ratelimit, getRateLimitIdentifier } from '@/lib/ratelimit'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,6 +17,17 @@ const AnalyzeTranscriptInputSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting - strict for AI analysis
+    const identifier = getRateLimitIdentifier(req)
+    const { success } = await ratelimit.ai.limit(identifier)
+
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+
     const body = await req.json()
     const input = AnalyzeTranscriptInputSchema.parse(body)
 

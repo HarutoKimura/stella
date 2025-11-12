@@ -12,9 +12,9 @@ export const MicroPackSchema = z.object({
 });
 
 export const TutorTurnInSchema = z.object({
-  userText: z.string(),
-  cefr: z.string(),
-  activeTargets: z.array(z.string()),
+  userText: z.string().min(1).max(5000), // Max 5000 characters to prevent abuse
+  cefr: z.string().max(10),
+  activeTargets: z.array(z.string().max(200)).max(10), // Max 10 targets, 200 chars each
   mode: z.enum(["gentle", "turn", "post"]),
 });
 
@@ -37,19 +37,19 @@ export const TutorTurnOutSchema = z.object({
 });
 
 export const SessionSummaryInSchema = z.object({
-  sessionId: z.string(),
-  usedTargets: z.array(z.string()),
-  missedTargets: z.array(z.string()),
+  sessionId: z.string().uuid(),
+  usedTargets: z.array(z.string().max(200)).max(50), // Max 50 targets
+  missedTargets: z.array(z.string().max(200)).max(50),
   corrections: z.array(z.object({
     type: z.enum(["grammar", "vocab", "pron"]),
-    example: z.string(),
-    correction: z.string(),
-  })),
+    example: z.string().max(1000),
+    correction: z.string().max(1000),
+  })).max(100), // Max 100 corrections per session
   transcript: z.array(z.object({
     role: z.enum(["user", "tutor"]),
-    text: z.string(),
+    text: z.string().max(5000),
     timestamp: z.number(),
-  })).optional(),
+  })).max(500).optional(), // Max 500 turns (very generous)
   metrics: z.object({
     wpm: z.number().optional(),
     filler_rate: z.number().optional(),
@@ -58,9 +58,9 @@ export const SessionSummaryInSchema = z.object({
 });
 
 export const PlannerInputSchema = z.object({
-  cefr: z.string(),
-  lastErrors: z.array(z.string()).optional(),
-  interests: z.array(z.string()).optional(),
+  cefr: z.string().max(10),
+  lastErrors: z.array(z.string().max(500)).max(20).optional(), // Max 20 errors, 500 chars each
+  interests: z.array(z.string().max(100)).max(10).optional(), // Max 10 interests, 100 chars each
 });
 
 // Database types

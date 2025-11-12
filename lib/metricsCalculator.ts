@@ -42,6 +42,7 @@ export interface MetricsInput {
   missedTargets: string[]
   sessionDurationMs: number
   userCefrLevel: string
+  azurePronunciationScore?: number  // Real pronunciation score from Azure Speech API (0-100)
 }
 
 export interface CalculatedMetrics {
@@ -378,11 +379,17 @@ function calculateScores(
     responseConfidence * 0.2
   )
 
-  // Pronunciation score: based on pronunciation errors
-  const pronunciationAccuracy = userTurns.length
-  const pronunciation_score = pronunciationAccuracy > 0
-    ? Math.max(0, 100 - (metrics.pronunciation_errors / pronunciationAccuracy) * 50)
-    : 50
+  // Pronunciation score: use real Azure score if available, otherwise estimate from errors
+  let pronunciation_score = 50 // Default fallback
+
+  if (input.azurePronunciationScore !== undefined && input.azurePronunciationScore !== null) {
+    // Use real Azure Speech API pronunciation assessment score
+    pronunciation_score = input.azurePronunciationScore
+  } else if (userTurns.length > 0) {
+    // Fallback: estimate from pronunciation error count (less accurate)
+    const errorRate = metrics.pronunciation_errors / userTurns.length
+    pronunciation_score = Math.max(0, 100 - (errorRate * 50))
+  }
 
   return {
     fluency_score: Math.round(Math.max(0, Math.min(100, fluency_score))),
