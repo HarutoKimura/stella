@@ -49,50 +49,22 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
     }, 300)
   }
 
-  // Calculate random position around the orb using entire screen space
-  // Avoid only the bottom input box area
-  const [position] = useState(() => {
-    // All possible positions spread across the entire screen
-    const allPositions = [
-      { angle: -90, distance: 320 },   // Top
-      { angle: -135, distance: 340 },  // Top-left
-      { angle: -45, distance: 340 },   // Top-right
-      { angle: 180, distance: 350 },   // Left
-      { angle: 0, distance: 350 },     // Right
-      { angle: -160, distance: 300 },  // Far left
-      { angle: -20, distance: 300 },   // Far right
-      { angle: -110, distance: 380 },  // Upper-left far
-      { angle: -70, distance: 380 },   // Upper-right far
-      { angle: 150, distance: 330 },   // Lower-left
-      { angle: 30, distance: 330 },    // Lower-right
-    ]
-
-    // Randomly select a position
-    const randomIndex = Math.floor(Math.random() * allPositions.length)
-    const pos = allPositions[randomIndex]
-    const angleInRadians = (pos.angle * Math.PI) / 180
-
-    // Calculate position relative to center
-    const xOffset = Math.cos(angleInRadians) * pos.distance
-    const yOffset = Math.sin(angleInRadians) * pos.distance
-
-    return {
-      left: `calc(50% + ${xOffset}px)`,
-      top: `calc(50% + ${yOffset}px)`,
-      transform: 'translate(-50%, -50%)',
-    }
-  })
+  // Position cards on the right side, stacked vertically
+  const position = {
+    right: '2rem',
+    top: `calc(6rem + ${index * 340}px)`,
+  }
 
   return (
     <div
       className={`fixed z-40 transition-all duration-500 ease-out ${
         isVisible && !isDismissing
           ? 'opacity-100 scale-100'
-          : 'opacity-0 scale-95'
+          : 'opacity-0 scale-95 translate-x-8'
       }`}
       style={{
         ...position,
-        width: '280px',
+        width: '460px',
         pointerEvents: 'auto',
         perspective: '1000px',
       }}
@@ -122,16 +94,16 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
             thickness={2}
             style={{ borderRadius: 16 }}
           >
-            <div className="bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl">
+            <div className="bg-slate-900/95 backdrop-blur-md p-7 rounded-2xl">
               {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{card.icon}</span>
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-4">
+                  <span className="text-6xl">{card.icon}</span>
                   <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">
+                    <h3 className="text-white font-semibold text-3xl leading-tight">
                       {card.topic}
                     </h3>
-                    <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 mt-1">
+                    <span className="inline-block text-base px-3 py-1.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 mt-2">
                       {card.cefr}
                     </span>
                   </div>
@@ -141,7 +113,7 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
                     e.stopPropagation()
                     handleDismiss()
                   }}
-                  className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mt-1"
+                  className="text-gray-500 hover:text-white transition-colors text-4xl leading-none -mt-1"
                   aria-label="Dismiss"
                 >
                   ×
@@ -149,15 +121,15 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
               </div>
 
               {/* Example Sentence */}
-              <div className="bg-slate-800/60 rounded-lg p-3 border border-cyan-500/20 mb-3">
-                <p className="text-xs text-gray-400 mb-1 font-medium">Try saying:</p>
-                <p className="text-sm text-white leading-relaxed">
+              <div className="bg-slate-800/60 rounded-lg p-6 border border-cyan-500/20 mb-5">
+                <p className="text-xl text-gray-400 mb-4 font-medium">Try saying:</p>
+                <p className="text-2xl text-white leading-relaxed">
                   "{card.exampleSentence}"
                 </p>
               </div>
 
               {/* Flip hint */}
-              <p className="text-[10px] text-cyan-400 text-center animate-pulse">
+              <p className="text-base text-cyan-400 text-center animate-pulse">
                 👆 Click to see useful phrases
               </p>
             </div>
@@ -180,16 +152,16 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
             thickness={2}
             style={{ borderRadius: 16 }}
           >
-            <div className="bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl">
+            <div className="bg-slate-900/95 backdrop-blur-md p-7 rounded-2xl">
               {/* Header */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">💬</span>
+              <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-4">
+                  <span className="text-6xl">💬</span>
                   <div>
-                    <h3 className="text-white font-semibold text-sm leading-tight">
+                    <h3 className="text-white font-semibold text-3xl leading-tight">
                       Useful Phrases
                     </h3>
-                    <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 mt-1">
+                    <span className="inline-block text-base px-3 py-1.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 mt-2">
                       {card.topic}
                     </span>
                   </div>
@@ -199,7 +171,7 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
                     e.stopPropagation()
                     handleDismiss()
                   }}
-                  className="text-gray-500 hover:text-white transition-colors text-lg leading-none -mt-1"
+                  className="text-gray-500 hover:text-white transition-colors text-4xl leading-none -mt-1"
                   aria-label="Dismiss"
                 >
                   ×
@@ -207,11 +179,11 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
               </div>
 
               {/* Useful Phrases List */}
-              <div className="bg-slate-800/60 rounded-lg p-3 border border-pink-500/20 mb-3">
-                <ul className="space-y-2">
+              <div className="bg-slate-800/60 rounded-lg p-6 border border-pink-500/20 mb-5">
+                <ul className="space-y-4">
                   {card.usefulPhrases.map((phrase, idx) => (
-                    <li key={idx} className="text-xs text-white leading-relaxed flex items-start gap-2">
-                      <span className="text-pink-400 mt-0.5">•</span>
+                    <li key={idx} className="text-2xl text-white leading-relaxed flex items-start gap-3">
+                      <span className="text-pink-400 mt-1 text-2xl">•</span>
                       <span>"{phrase}"</span>
                     </li>
                   ))}
@@ -219,7 +191,7 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
               </div>
 
               {/* Flip back hint */}
-              <p className="text-[10px] text-pink-400 text-center animate-pulse">
+              <p className="text-base text-pink-400 text-center animate-pulse">
                 👆 Click to flip back
               </p>
             </div>
