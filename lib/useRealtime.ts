@@ -471,7 +471,9 @@ export function useRealtime() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create session')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[Realtime Token] API error:', response.status, errorData)
+        throw new Error(errorData.error || `Failed to create session (${response.status})`)
       }
 
       const { token, model, prompt } = await response.json()

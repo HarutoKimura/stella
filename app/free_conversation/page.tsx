@@ -596,6 +596,22 @@ function FreeConversationContent() {
                 rotateOnHover={true}
                 forceHoverState={status === 'connecting' || status === 'idle'}
               />
+
+              {/* Loading overlay text - shown during setup */}
+              {(status === 'connecting' || status === 'idle') && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <SpotlightCard className="!p-6" spotlightColor="rgba(59, 130, 246, 0.4)">
+                    <div className="text-center">
+                      <p className="text-2xl text-blue-300 animate-pulse font-bold mb-2">
+                        Setting up your session...
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        {status === 'idle' ? 'Preparing AI tutor' : 'Connecting to voice system'}
+                      </p>
+                    </div>
+                  </SpotlightCard>
+                </div>
+              )}
             </div>
 
             {/* AI Tutor speaking indicator - shown during active session */}

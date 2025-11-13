@@ -160,6 +160,7 @@ export async function POST(req: NextRequest) {
     console.log('[Realtime Token] Includes recall instructions:', systemPrompt.includes('accent test') || systemPrompt.includes('weakness'))
 
     // Request ephemeral token from OpenAI
+    console.log('[Realtime Token] Requesting session from OpenAI...')
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {
@@ -177,9 +178,27 @@ export async function POST(req: NextRequest) {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      console.error('OpenAI API error:', error)
-      throw new Error('Failed to create realtime session')
+      const errorText = await response.text()
+      let error
+      try {
+        error = JSON.parse(errorText)
+      } catch {
+        error = { message: errorText }
+      }
+      console.error('[Realtime Token] OpenAI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error,
+      })
+
+      // Return specific error message to client
+      return NextResponse.json(
+        {
+          error: `OpenAI API error: ${error.error?.message || error.message || 'Unknown error'}`,
+          details: error
+        },
+        { status: response.status }
+      )
     }
 
     const data = await response.json()
