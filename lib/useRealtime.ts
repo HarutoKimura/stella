@@ -19,11 +19,13 @@ type VADState = {
   speaking: boolean
   silenceStartedAt: number | null
   recordingStartedAt: number | null
+  speechConsistencyCount: number // Track consecutive speech detections
 }
 
-const SPEECH_RMS_THRESHOLD = 0.02
+const SPEECH_RMS_THRESHOLD = 0.05 // Increased from 0.02 to reduce background noise sensitivity
 const SILENCE_DURATION_MS = 2000 // Increased from 750ms to 2000ms to capture longer phrases
-const MIN_UTTERANCE_MS = 500
+const MIN_UTTERANCE_MS = 800 // Increased from 500ms to filter out very short noise bursts
+const SPEECH_CONSISTENCY_CHECKS = 3 // Number of consecutive frames needed to confirm speech
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -61,6 +63,7 @@ export function useRealtime() {
     speaking: false,
     silenceStartedAt: null,
     recordingStartedAt: null,
+    speechConsistencyCount: 0,
   })
 
   const addTurn = useSessionStore((state) => state.addTurn)
@@ -71,6 +74,30 @@ export function useRealtime() {
 
   const lastUserMessageRef = useRef<string>('')
   const isActiveRef = useRef(false)
+
+  // Check if text is likely English (to avoid sending non-English to Azure)
+  const isLikelyEnglish = (text: string): boolean => {
+    if (!text || text.length === 0) return false
+
+    // Check for non-English scripts (Japanese, Korean, Chinese, etc.)
+    const hasNonEnglishChars = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF\u0600-\u06FF\u0400-\u04FF]/.test(text)
+
+    if (hasNonEnglishChars) {
+      console.log('[Language Filter] Non-English text detected, skipping pronunciation assessment:', text)
+      return false
+    }
+
+    // Check if text has mostly English characters (letters, numbers, common punctuation)
+    const englishChars = text.match(/[a-zA-Z0-9\s.,!?'"()-]/g)
+    const ratio = englishChars ? englishChars.length / text.length : 0
+
+    if (ratio < 0.7) {
+      console.log('[Language Filter] Low English ratio, skipping pronunciation assessment:', text)
+      return false
+    }
+
+    return true
+  }
 
   const processTranscription = useCallback(
     async (blob: Blob) => {
@@ -117,8 +144,10 @@ export function useRealtime() {
           addUserMessage(text)
           lastUserMessageRef.current = text
 
-          // Save audio segment for pronunciation assessment
-          addAudioSegment(blob, text)
+          // Only save audio segment for pronunciation assessment if it's English
+          if (isLikelyEnglish(text)) {
+            addAudioSegment(blob, text)
+          }
         }
       } catch (err) {
         // Only log if session is still active
@@ -237,6 +266,7 @@ export function useRealtime() {
         vadRef.current.speaking = false
         vadRef.current.silenceStartedAt = null
         vadRef.current.recordingStartedAt = null
+        vadRef.current.speechConsistencyCount = 0
 
         const detect = () => {
           const { analyser, dataArray } = vadRef.current
@@ -257,17 +287,27 @@ export function useRealtime() {
 
           if (rms > SPEECH_RMS_THRESHOLD) {
             vadRef.current.silenceStartedAt = null
-            if (!vadRef.current.speaking) {
+
+            // Increment consistency count
+            vadRef.current.speechConsistencyCount++
+
+            // Only start recording if we've had consistent speech detection
+            if (!vadRef.current.speaking && vadRef.current.speechConsistencyCount >= SPEECH_CONSISTENCY_CHECKS) {
               vadRef.current.speaking = true
               startRecording()
             }
-          } else if (vadRef.current.speaking) {
-            if (vadRef.current.silenceStartedAt === null) {
-              vadRef.current.silenceStartedAt = now
-            } else if (now - vadRef.current.silenceStartedAt > SILENCE_DURATION_MS) {
-              vadRef.current.speaking = false
-              vadRef.current.silenceStartedAt = null
-              stopRecording()
+          } else {
+            // Reset consistency count when no speech detected
+            vadRef.current.speechConsistencyCount = 0
+
+            if (vadRef.current.speaking) {
+              if (vadRef.current.silenceStartedAt === null) {
+                vadRef.current.silenceStartedAt = now
+              } else if (now - vadRef.current.silenceStartedAt > SILENCE_DURATION_MS) {
+                vadRef.current.speaking = false
+                vadRef.current.silenceStartedAt = null
+                stopRecording()
+              }
             }
           }
 
@@ -299,6 +339,7 @@ export function useRealtime() {
     vadRef.current.speaking = false
     vadRef.current.silenceStartedAt = null
     vadRef.current.recordingStartedAt = null
+    vadRef.current.speechConsistencyCount = 0
   }, [])
 
   // Extract text from nested delta structure
@@ -366,13 +407,15 @@ export function useRealtime() {
               addTurn('tutor', message)
               addTutorMessage(message)
 
-              // Parse and store corrections if detected
-              if (containsCorrection(message)) {
+              // Parse and store corrections if detected (only for English user messages)
+              if (containsCorrection(message) && lastUserMessageRef.current && isLikelyEnglish(lastUserMessageRef.current)) {
                 const detectedCorrections = parseCorrections(message, lastUserMessageRef.current)
                 detectedCorrections.forEach((correction) => {
                   console.log('[Correction Detected]', correction)
                   addCorrection(correction)
                 })
+              } else if (containsCorrection(message) && lastUserMessageRef.current && !isLikelyEnglish(lastUserMessageRef.current)) {
+                console.log('[Correction Filter] Skipping correction for non-English text:', lastUserMessageRef.current)
               }
 
               bufferRef.current = ''
@@ -527,8 +570,7 @@ export function useRealtime() {
         setStatus('connected')
         isActiveRef.current = true // Mark session as active
 
-        // Send session configuration only
-        // Don't trigger response.create here - let the AI initiate naturally
+        // Send session configuration with stricter VAD settings
         const sessionConfig = {
           type: 'session.update',
           session: {
@@ -536,6 +578,12 @@ export function useRealtime() {
             modalities: ['text', 'audio'],
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.9, // Much higher = only pick up close/loud speech (default 0.5)
+              prefix_padding_ms: 300,
+              silence_duration_ms: 1200, // Longer silence required to end turn
+            },
           },
         }
 

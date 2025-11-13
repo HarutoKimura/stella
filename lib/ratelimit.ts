@@ -97,20 +97,20 @@ export const ratelimit = {
       },
 
   /**
-   * Very strict rate limiting for token generation
-   * - 5 requests per minute
+   * Moderate rate limiting for token generation
+   * - 20 requests per minute (increased for development/testing)
    * - Use for: /api/realtime-token
    */
   token: redis
     ? new Ratelimit({
         redis,
-        limiter: Ratelimit.slidingWindow(5, '1 m'),
+        limiter: Ratelimit.slidingWindow(20, '1 m'),
         analytics: true,
       })
     : {
         limit: async (identifier: string) => {
           console.warn('[Rate Limit] Using in-memory store (Upstash not configured)')
-          return inMemoryStore.limit(identifier, 5, 60000)
+          return inMemoryStore.limit(identifier, 20, 60000)
         },
       },
 
