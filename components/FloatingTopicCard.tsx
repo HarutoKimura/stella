@@ -49,10 +49,10 @@ export const FloatingTopicCard: React.FC<FloatingTopicCardProps> = ({
     }, 300)
   }
 
-  // Position cards on the right side, stacked vertically
+  // Position cards on the right side, stacked vertically with more spacing
   const position = {
     right: '2rem',
-    top: `calc(6rem + ${index * 340}px)`,
+    top: `calc(6rem + ${index * 380}px)`,
   }
 
   return (

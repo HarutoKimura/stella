@@ -17,12 +17,16 @@ import { FloatingTopicContainer } from '@/components/FloatingTopicContainer'
 import { TopicCardData } from '@/components/FloatingTopicCard'
 import { detectConversationStruggle, generateFloatingTopicCards } from '@/lib/topicSuggestions'
 import { assessPronunciation, usePronunciationStore } from '@/lib/pronunciationStore'
+import { FloatingPhraseContainer } from '@/components/FloatingPhraseContainer'
+import { PhraseCardData } from '@/components/FloatingPhraseCard'
+import { generateFloatingPhraseCardsFromDb } from '@/lib/phraseSuggestions'
 
 function FreeConversationContent() {
   const [input, setInput] = useState('')
   const sessionId = useSessionStore((state) => state.sessionId)
   const user = useSessionStore((state) => state.user)
   const transcript = useSessionStore((state) => state.transcript)
+  const activeTargets = useSessionStore((state) => state.activeTargets)
   const startSession = useSessionStore((state) => state.startSession)
   const setUser = useSessionStore((state) => state.setUser)
   const addUserMessage = useBubbleStore((state) => state.addUserMessage)
@@ -35,6 +39,10 @@ function FreeConversationContent() {
   // Floating topic cards state
   const [floatingCards, setFloatingCards] = useState<TopicCardData[]>([])
   const [hasShownCards, setHasShownCards] = useState(false)
+
+  // Floating phrase cards state (weakness-based suggestions)
+  const [floatingPhraseCards, setFloatingPhraseCards] = useState<PhraseCardData[]>([])
+  const [hasShownPhraseCards, setHasShownPhraseCards] = useState(false)
 
   // Context from accent test (if redirected from test results)
   const [accentTestFeedback, setAccentTestFeedback] = useState<any[] | null>(null)
@@ -122,7 +130,7 @@ function FreeConversationContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedbackLoaded])
 
-  // Monitor conversation for struggle patterns and show cards automatically
+  // Monitor conversation for struggle patterns and show topic cards automatically
   useEffect(() => {
     if (!user || !sessionId || transcript.length < 4 || hasShownCards) return
 
@@ -140,6 +148,33 @@ function FreeConversationContent() {
       }, 60000)
     }
   }, [transcript, user, sessionId, floatingCards, hasShownCards])
+
+  // Auto-show phrase suggestions after some conversation (using database weaknesses)
+  useEffect(() => {
+    if (!user || !sessionId || hasShownPhraseCards || transcript.length < 8) return
+
+    const autoShow = async () => {
+      if (floatingPhraseCards.length > 0) return
+
+      console.log('[Auto Phrase Suggestions] Triggering after', transcript.length, 'turns')
+      const existingPhrases = activeTargets.map((t) => t.phrase)
+
+      const phraseCards = await generateFloatingPhraseCardsFromDb(user.id, user.cefr, existingPhrases, 2)
+
+      if (phraseCards.length > 0) {
+        console.log('[Auto Phrase Suggestions] Showing', phraseCards.length, 'weakness-based phrases')
+        setFloatingPhraseCards(phraseCards)
+        setHasShownPhraseCards(true)
+
+        // Reset the flag after 90 seconds so cards can appear again
+        setTimeout(() => {
+          setHasShownPhraseCards(false)
+        }, 90000)
+      }
+    }
+
+    autoShow()
+  }, [transcript.length, user, sessionId, activeTargets, floatingPhraseCards, hasShownPhraseCards])
 
   const initSession = async () => {
     // Load user
@@ -252,6 +287,10 @@ function FreeConversationContent() {
 
   const handleDismissFloatingCard = (cardId: string) => {
     setFloatingCards((prev) => prev.filter((card) => card.id !== cardId))
+  }
+
+  const handleDismissPhraseCard = (cardId: string) => {
+    setFloatingPhraseCards((prev) => prev.filter((card) => card.id !== cardId))
   }
 
   const handleStopSession = async () => {
@@ -425,6 +464,13 @@ function FreeConversationContent() {
         onDismiss={handleDismissFloatingCard}
       />
 
+      {/* Floating Phrase Cards (weakness-based suggestions) */}
+      <FloatingPhraseContainer
+        cards={floatingPhraseCards}
+        onDismiss={handleDismissPhraseCard}
+        topicCardCount={floatingCards.length}
+      />
+
       <div className="min-h-screen p-6 pb-40">
         <div className="max-w-7xl mx-auto">
           <div className="mb-4 flex items-center justify-between">
@@ -501,6 +547,35 @@ function FreeConversationContent() {
                     disabled={floatingCards.length > 0}
                   >
                     💡 Topics
+                  </button>
+                </SpotlightCard>
+                {/* Phrase suggestions button - based on historical weaknesses */}
+                <SpotlightCard className="!p-0 !rounded-lg" spotlightColor="rgba(251, 191, 36, 0.3)">
+                  <button
+                    onClick={async () => {
+                      if (!user || floatingPhraseCards.length > 0) {
+                        console.log('[Phrase Button] Skipped - cards already showing or no user')
+                        return
+                      }
+
+                      console.log('[Phrase Button] Fetching phrases from database...')
+                      const existingPhrases = activeTargets.map((t) => t.phrase)
+
+                      const phraseCards = await generateFloatingPhraseCardsFromDb(user.id, user.cefr, existingPhrases, 2)
+
+                      if (phraseCards.length > 0) {
+                        console.log('[Manual Phrase Suggestion] Showing', phraseCards.length, 'weakness-based phrases')
+                        setFloatingPhraseCards(phraseCards)
+                      } else {
+                        console.log('[Manual Phrase Suggestion] No phrases found')
+                        alert('No phrase suggestions available yet. Keep practicing to build your error history!')
+                      }
+                    }}
+                    className="text-amber-400 font-semibold px-3 py-1.5 text-xs w-full h-full"
+                    title="Get phrase suggestions based on your past mistakes"
+                    disabled={floatingPhraseCards.length > 0}
+                  >
+                    ✨ Phrases
                   </button>
                 </SpotlightCard>
               </div>
